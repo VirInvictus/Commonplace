@@ -38,6 +38,56 @@ ported from the `nvalt/` tree's form (that is the lineage users run);
 Commonplace is GPL-3.0, which licenses both trees as sources either
 way; attribution to Zachary Schneirov rides in README + LICENSE.
 
+**Translation layers.** This is a macOS app being rebuilt for a
+Thinkpad, not translated line-for-line. Every layer below crosses a
+boundary; each names where the crossing is handled.
+
+1. **Language and framework**: Objective-C/Cocoa → Rust + GTK4. A
+   manual port against behavior contracts (the research corpus); no
+   upstream code is compiled or linked.
+2. **UI toolkit**: NSTextView / NSTableView / legacy WebView →
+   GtkSourceView / GtkListView / WebKitGTK. Mapped per phase with
+   house evidence (house §Q1-Q5); GTK4's gaps (no in-cell editing,
+   no token fields, no NSUndoManager) are exactly where the Phase
+   10/12/13/17 decisions live.
+3. **Text model**: NSAttributedString everywhere upstream → plain
+   String + editor-layer styling here (map §7 note 2). The file on
+   disk is plain text in both; the in-memory rich model is an
+   upstream artifact we deliberately drop.
+4. **Filesystem services**: FSEvents → inotify via the notify crate
+   (Phase 10; crates §2); FSExchangeObjects →
+   renameat2(RENAME_EXCHANGE) (Phase 4); the com.apple.TextEncoding
+   xattr → UTF-8 always + BOM sniff (Phase 1, recorded divergence);
+   Finder tags → metadata blocks + inline tags (Phase 5: no
+   desktop-standard tag store exists on Linux); the Apple single-DB
+   library format → not ported at all (files-only, invariant 1).
+5. **Platform services**: Keychain → libsecret (only if Phase 22
+   greenlights); Sparkle updates → release artifacts + Flatpak
+   (Phase 23); AppleScript/sdef → the CLI + `commonplace://` scheme
+   (Phases 8/9/18); ODB external editing → `$EDITOR` + file watch
+   (Phase 12); Spotlight was never used upstream (map §7 note 12)
+   and is not introduced here.
+6. **Keyboard notation**: the research tables are in Mac notation
+   (⌘⌥⌃⇧). The Linux keymap derives mechanically: **mac ⌘ → Ctrl**
+   (the GTK convention: copy is Ctrl+C), **mac ⌥ → Alt**, mac ⌃
+   merges into the Ctrl space, and a binding that needs two
+   modifiers maps its second to Alt (mac ⌃⌘X → Ctrl+Alt+X). Known
+   collisions for the Phase 14 pass: mac ⌃⌘P (preview) translates
+   onto ⌘P's print slot, so preview moves to Ctrl+Alt+P; nvALT's
+   ⌃⌘↑/↓ (paragraph move) and nvUltra's ⌃⌥↑/↓ CONVERGE to the same
+   Ctrl+Alt+Up/Down on Linux, which resolves the bind-both
+   recommendation for free; nvUltra's ⌃⌘↑/↓ line-shift has no free
+   translation and stays unbound. The Mac-notation tables in
+   `research/interaction-contract.md` stay canonical; Phase 14
+   derives and checks the Linux table against them.
+7. **Hardware**: none: no Retina, TouchBar, or notch assumptions
+   exist in any code we port; HiDPI rides GTK fractional scaling
+   (Phase 20 smoke pass).
+
+Layers 1-5 and 7 are already distributed through the phases; layer 6
+is new as an explicit pass and joins Phase 14's checklist and the
+decision ledger.
+
 ---
 
 ## Phase 0: Skeleton (done)
@@ -490,6 +540,10 @@ table lands as the default keymap (delta §1 3.0.7 batch).
 - [ ] paragraph move + expand/shrink selection
 - [ ] golden transform tables headless
 - [ ] default keymap = the nvALT shortcut table
+- [ ] Linux keymap derived from the Mac-notation tables (translation
+      rule in the header: ⌘→Ctrl, ⌥→Alt, ⌃⌘X→Ctrl+Alt+X) with the
+      collision pass (preview slot, paragraph-move convergence,
+      line-shift unbound) recorded in the ledger
 - [ ] docs carried: spec rows, patchnotes entry
 
 ## Phase 15: App: preview pane
@@ -797,6 +851,7 @@ drift it finds is fixed in the same session.
 | Autosave: on, debounced 250-500 ms, Docket guard discipline | 12 | recommendation (house §Q2), confirm at phase |
 | Highlighting: sourceview engine + Quire-style guarded passes, cap enforced before pass | 13 | decided (roadmap, house evidence) |
 | Paragraph-move: bind Ctrl-Cmd (ALT) AND Ctrl-Opt (ULTRA alias); headings: nvUltra's ungated Opt-Cmd-]/[ | 14 | decided (contract §4C) |
+| Keyboard translation: mac ⌘→Ctrl, ⌥→Alt, ⌃⌘X→Ctrl+Alt+X; collision pass (preview → Ctrl+Alt+P; paragraph-move convergence; line-shift unbound) | 14 | recommendation (roadmap translation layers), confirm at phase |
 | Preview baseline: Framework reload-with-anchor-restore; DOM replacement = unproven experiment | 15 | decided (house §Q1 + crates §6 scroll-API constraint) |
 | Preview math: MathJax vs KaTeX | 15 | open (no house evidence) |
 | Cmd-[0-9] namespace: bookmarks [ALT]; saved searches take Shift-Cmd-[0-9] [CP] | 17 | recommendation (contract §4B), confirm at phase |
