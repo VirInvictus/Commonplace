@@ -202,8 +202,8 @@ set), property tests (result set == naive re-filter at every step),
 a 10k-note benchmark with a latency gate recorded in the test.
 
 - [x] `search` module: incremental `FilterState` + stable sort + selection rule
-- [x] property tests (incremental == naive at every step; 600 seeded
-      random edit walks plus scripted sequences)
+- [x] property tests (incremental == naive at every step; a 600-step
+      seeded random edit walk plus scripted sequences)
 - [x] 10k-note benchmark with a recorded latency gate (50 ms per
       keystroke on `--release`, measured 12.9 ms cold / 65-90 µs warm)
 - [x] docs carried: spec rows (the patchnotes entry lands with the

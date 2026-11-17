@@ -12,7 +12,7 @@ use std::cmp::Ordering;
 
 use crate::fold::fold;
 use crate::note::Note;
-use crate::query::{self, QueryError};
+use crate::query::{self, PlainToken, QueryError};
 
 /// The sortable columns, upstream's four (`NotesTableView.m:101-105`:
 /// title, labels, dateModified, dateCreated). The labels column
@@ -143,6 +143,13 @@ struct Candidate {
 /// group queries re-filter naively from all notes: upstream has no
 /// resume semantics for them to preserve. Any query deletion, tag
 /// -word count increase, or grammar change restarts from all notes.
+///
+/// Lifetime contract: the state is keyed by arena indexes of ONE
+/// loaded collection. Every `update`/`resort`/`selection` call must
+/// hand over the same notes slice (same store, unchanged contents):
+/// the engine's notes are immutable between loads in these phases,
+/// and Phase 4's reconcile pass will clear the state on any disk
+/// change rather than re-key it.
 #[derive(Debug)]
 pub struct FilterState {
     /// The folded working query (upstream's lowercased
@@ -224,7 +231,7 @@ impl FilterState {
             Some(_) if new_plain => {
                 // Plain chains are scanned token by token; the parsed
                 // shape only decided that this is the resume path.
-                self.scan_plain_tokens(&new_query, resume_ok, notes);
+                self.scan_plain_tokens(raw_query, resume_ok, notes);
             }
             Some(expr) => {
                 let old = std::mem::take(&mut self.candidates);
@@ -307,20 +314,33 @@ impl FilterState {
             .or_insert_with(|| fold(notes[index].body.as_str()).into_boxed_str())
     }
 
-    /// Scan the tokens of `new_query` from `last_word_start` over the
-    /// candidate set: the port of the strsep resume loop (m:1405-1454).
-    fn scan_plain_tokens(&mut self, new_query: &str, resume_ok: bool, notes: &[Note]) {
-        for (start, text) in tokens_from(new_query, self.last_word_start) {
+    /// Scan the tokens of `raw_query` from `last_word_start` over the
+    /// candidate set: the port of the strsep resume loop (m:1405-1454),
+    /// tokenized by the same lexer the parser uses
+    /// ([`query::plain_tokens`]) so the needle sets can never
+    /// disagree.
+    fn scan_plain_tokens(&mut self, raw_query: &str, resume_ok: bool, notes: &[Note]) {
+        let resume_from = self.last_word_start;
+        let tokens = query::plain_tokens(raw_query);
+        // Tokens before the resume offset already matched in a
+        // previous run; scanning starts at the previous last token
+        // (upstream resumes strsep at lastWordInFilterStr, m:1407).
+        for (start, token) in tokens.into_iter().skip_while(|(s, _)| *s < resume_from) {
             // Only the first scanned token (the previous last token,
             // still at its old offset in a prefix extension) resumes
             // from the stored positions; every later token scans
             // fresh, resetting them (m:1427: useCachedPositions).
             let resumed = resume_ok && start == self.last_word_start;
-            // The needle is the token text, folded with the query; a
-            // tag word's literal is the whole "#xyz" token (upstream
-            // trims the word, TagSearch.m:36-40).
-            let needle = text;
-            let is_tag = text.starts_with('#') && text.chars().count() >= 2;
+            // The needle is the token text, folded exactly as the
+            // parser folds it; a tag word's needle is the whole
+            // "#xyz" literal (upstream trims the word,
+            // TagSearch.m:36-40).
+            let needle: String = match &token {
+                PlainToken::Word(text) | PlainToken::Phrase(text) => fold(text),
+                PlainToken::TagWord(name) => fold(&format!("#{name}")),
+            };
+            let is_tag = matches!(token, PlainToken::TagWord(_));
+            let needle = needle.as_str();
 
             let old = std::mem::take(&mut self.candidates);
             let mut kept: Vec<Candidate> = Vec::with_capacity(old.len());
@@ -360,48 +380,6 @@ impl FilterState {
             self.last_word_start = start;
         }
     }
-}
-
-/// The NV strsep tokenizer over the folded query, resumed from
-/// `from`: quote mode (any `"` in the query) splits segments on `"`
-/// alone, plain mode splits on `space : tab CR LF`
-/// (`NotationController.m:1396`). Tokens are trimmed of surrounding
-/// whitespace and empties are skipped, matching the parse side's
-/// needles (row 59, point 3). Returns `(char offset, text)`.
-fn tokens_from(query: &str, from: usize) -> Vec<(usize, &str)> {
-    let quote_mode = query.contains('"');
-    let mut out = Vec::new();
-    let mut start = None;
-    for (i, c) in query.char_indices() {
-        let sep = if quote_mode {
-            c == '"'
-        } else {
-            matches!(c, ' ' | ':' | '\t' | '\r' | '\n')
-        };
-        if sep {
-            if let Some(s) = start.take() {
-                let text = query[s..i].trim();
-                if !text.is_empty() {
-                    out.push((s, text));
-                }
-            }
-        } else if start.is_none() {
-            start = Some(i);
-        }
-    }
-    if let Some(s) = start.take() {
-        let text = query[s..].trim();
-        if !text.is_empty() {
-            out.push((s, text));
-        }
-    }
-    // The char offset the resume logic keys on is the token's start
-    // as the string sees it; `char_indices` gives byte offsets, so
-    // convert.
-    out.into_iter()
-        .map(|(s, text)| (query[..s].chars().count(), text))
-        .filter(|(s, _)| *s >= from)
-        .collect()
 }
 
 /// Substring search from a char offset, returning the absolute match
@@ -608,6 +586,17 @@ mod tests {
                 105,
             ),
             filter_note("z.md", "zebra", "plain body text", 100),
+            // Discriminators for the review-found divergence classes:
+            // each matches under one tokenization and not the other,
+            // so the property tests go red if the scanner's needle set
+            // ever drifts from the parser's again.
+            filter_note("q.md", "quote target", "x a b spaces", 95),
+            // NBSP is needle content, not a separator (row 59)
+            filter_note("n.md", "nb sp", "foo\u{a0}bar lives", 92),
+            // tag:x must reach the literal #unix, not needles tag+unix
+            filter_note("u.md", "unix tips", "#unix basics", 91),
+            // İ folds through its table entry, dotless
+            filter_note("i.md", "İstanbul notes", "turkish city", 90),
         ]
     }
 
@@ -727,6 +716,13 @@ mod tests {
             " ",
             "Bücher",
             "bucher",
+            // Review-found divergence classes, each with a fixture
+            // note that one tokenization admits and the other refuses:
+            "tag:unix",     // full-name operator: naive path, literal #unix
+            "\"x\" a",      // quote segments; unquoted tail splits per word
+            "\"x\" a b",    // the resumed tail must stay two words, not one
+            "foo\u{a0}bar", // NBSP is needle content, not a separator
+            "istanbul",     // İ folds dotless through its table entry
         ] {
             step_matches_naive(&mut state, raw, &notes, sort);
         }
@@ -737,7 +733,7 @@ mod tests {
         let notes = fixture();
         let sort = SortOptions::default();
         let mut state = FilterState::new(sort);
-        let alphabet: Vec<char> = "worf picard #st tag:u \"ex AND OR NOT !()&|:éBü"
+        let alphabet: Vec<char> = "worf picard #st tag:u \"ex AND OR NOT !()&|:éBüİx"
             .chars()
             .collect();
         let mut raw = String::new();

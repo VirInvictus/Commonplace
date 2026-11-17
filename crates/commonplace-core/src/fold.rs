@@ -510,23 +510,50 @@ const FOLD_TABLE: &[(char, u8)] = &[
     ('\u{1ef9}', b'y'),
 ];
 
-/// Fold one char: the ASCII base letter when the char is a
-/// diacritic-bearing precomposed letter, else the char itself
-/// (already lowercase: `fold` lowercases before consulting the
-/// table).
-fn fold_char(c: char) -> char {
-    match FOLD_TABLE.binary_search_by_key(&c, |&(probe, _)| probe) {
-        Ok(i) => FOLD_TABLE[i].1 as char,
-        Err(_) => c,
-    }
+/// Fold one char: the table's ASCII base letter (lowercased) when the
+/// char is a diacritic-bearing precomposed letter, else `None`.
+fn fold_char(c: char) -> Option<char> {
+    FOLD_TABLE
+        .binary_search_by_key(&c, |&(probe, _)| probe)
+        .ok()
+        .map(|i| (FOLD_TABLE[i].1 as char).to_ascii_lowercase())
 }
 
-/// Fold a string: Unicode lowercase, then strip Latin diacritics.
-/// Idempotent; the result matches ASCII needles against accented
-/// text and vice versa (`bucher` finds `Bücher`).
+/// Fold a string: per character, the diacritic table first (its base
+/// letter, lowercased), otherwise `char::to_lowercase` with any
+/// combining-mark leftovers dropped (the simple lowercase of U+0130 İ
+/// is `i` + U+0307; the table catches İ itself, so the guard only
+/// backs up the exotic case).
+///
+/// The function is deliberately context-free (per `char`, never
+/// `str::to_lowercase`, whose final-sigma rule makes the result
+/// position-dependent) and one-to-one on characters: folding a token
+/// equals folding the whole string and slicing, which the incremental
+/// filter's resume offsets rely on. Idempotent; the result matches
+/// ASCII needles against accented text and vice versa (`bucher` finds
+/// `Bücher`).
 pub fn fold(s: &str) -> String {
-    let lower = s.to_lowercase();
-    lower.chars().map(fold_char).collect()
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        if let Some(base) = fold_char(c) {
+            out.push(base);
+            continue;
+        }
+        for lc in c.to_lowercase() {
+            if !is_combining_mark(lc) {
+                out.push(lc);
+            }
+        }
+    }
+    out
+}
+
+/// Combining diacritical marks (the leftovers a lowercase expansion
+/// can leave behind). Only U+0300..U+036F is reachable through
+/// `to_lowercase` here; broader mark families never appear in a
+/// lowercase mapping of a letter this engine folds.
+fn is_combining_mark(c: char) -> bool {
+    ('\u{0300}'..='\u{036F}').contains(&c)
 }
 
 #[cfg(test)]
@@ -583,6 +610,34 @@ mod tests {
     }
 
     #[test]
+    fn dotted_capital_i_folds_dotless() {
+        // U+0130's simple lowercase is `i` + U+0307; the table entry
+        // must win, leaving no combining dot (the review's row-58
+        // counterexample)
+        assert_eq!(fold("İstanbul"), "istanbul");
+        assert!(!fold("İstanbul").contains('\u{307}'));
+        assert_eq!(fold("İ"), "i");
+    }
+
+    #[test]
+    fn fold_is_context_free_and_char_preserving() {
+        // str::to_lowercase moves Greek final sigma by position;
+        // per-char folding must not
+        assert_eq!(fold("Σ"), fold("ΑΣ").strip_prefix('α').unwrap());
+        // Every table entry folds to exactly one char, and so does
+        // every char the table does not catch (the only Unicode
+        // growing lowercase, İ, is in the table): folding a token
+        // equals slicing the folded whole, which the resume offsets
+        // rely on.
+        for c in ['İ', 'ß', 'ẞ', 'Σ', 'Æ', 'Ǆ', 'ǵ', '\u{a0}'] {
+            assert_eq!(fold(&c.to_string()).chars().count(), 1, "char {c:?}");
+        }
+        for &(c, _) in FOLD_TABLE {
+            assert_eq!(fold(&c.to_string()).chars().count(), 1, "table char {c:?}");
+        }
+    }
+
+    #[test]
     fn greek_and_cyrillic_are_out_of_scope() {
         // No ASCII base letter exists for these; folding must not mangle them
         assert_eq!(fold("Привет"), "привет");
@@ -598,8 +653,10 @@ mod tests {
 
     #[test]
     fn every_entry_folds_to_itself_after_one_pass() {
+        // fold_char returns the base letter lowercased (fold output is
+        // all-lowercase), whatever the entry's recorded case.
         for &(c, base) in FOLD_TABLE {
-            assert_eq!(fold_char(c), base as char);
+            assert_eq!(fold_char(c), Some((base as char).to_ascii_lowercase()));
         }
     }
 }

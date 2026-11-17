@@ -92,33 +92,48 @@ enum Tok {
 }
 
 fn is_word_break(c: char) -> bool {
-    c.is_whitespace() || matches!(c, '(' | ')' | '"' | '&' | '|' | ':')
+    // The separator set is exactly upstream's ASCII set plus the
+    // structural characters (row 59): other Unicode whitespace is
+    // needle content, matching NV's byte-wise strsep, and keeping the
+    // lexer identical to the incremental scan's tokenizer.
+    matches!(
+        c,
+        ' ' | '\t' | '\r' | '\n' | '(' | ')' | '"' | '&' | '|' | ':'
+    )
 }
 
-/// Lex the raw query. The superset resolutions of spec row 59 live
-/// here: operators are the uppercase keywords and symbols; `:` ends a
-/// word and is skipped; `#` starts a tag word; a `"` anywhere switches
-/// to phrase mode (upstream re-tokenizes the whole query on `"` when
-/// it contains one, `NotationController.m:1396`), with an unterminated
-/// quote extending to the end.
-fn lex(raw: &str) -> Vec<Tok> {
+/// Trim the separator whitespace exactly, never Unicode whitespace:
+/// an NBSP inside a needle is content (row 59's pinned set).
+fn trim_separators(s: &str) -> &str {
+    s.trim_matches(|c| matches!(c, ' ' | '\t' | '\r' | '\n'))
+}
+
+/// Lex the raw query into tokens with their char offsets. The
+/// superset resolutions of spec row 59 live here: operators are the
+/// uppercase keywords and symbols; `:` ends a word and is skipped;
+/// `#` starts a tag word; a `"` anywhere switches to phrase mode
+/// (upstream re-tokenizes the whole query on `"` when it contains
+/// one, `NotationController.m:1396`), with an unterminated quote
+/// extending to the end. Whitespace is exactly the ASCII separator
+/// set, matching the scan side (row 59, point 3).
+fn lex_with_offsets(raw: &str) -> Vec<(usize, Tok)> {
     let chars: Vec<char> = raw.chars().collect();
-    let mut toks = Vec::new();
+    let mut toks: Vec<(usize, Tok)> = Vec::new();
     let mut i = 0;
     while i < chars.len() {
         let c = chars[i];
         match c {
-            _ if c.is_whitespace() => i += 1,
+            _ if matches!(c, ' ' | '\t' | '\r' | '\n') => i += 1,
             '(' => {
-                toks.push(Tok::LParen);
+                toks.push((i, Tok::LParen));
                 i += 1;
             }
             ')' => {
-                toks.push(Tok::RParen);
+                toks.push((i, Tok::RParen));
                 i += 1;
             }
             '&' => {
-                toks.push(Tok::And);
+                toks.push((i, Tok::And));
                 i += if i + 1 < chars.len() && chars[i + 1] == '&' {
                     2
                 } else {
@@ -126,7 +141,7 @@ fn lex(raw: &str) -> Vec<Tok> {
                 };
             }
             '|' => {
-                toks.push(Tok::Or);
+                toks.push((i, Tok::Or));
                 i += if i + 1 < chars.len() && chars[i + 1] == '|' {
                     2
                 } else {
@@ -141,14 +156,14 @@ fn lex(raw: &str) -> Vec<Tok> {
                     i += 1;
                 }
                 let phrase: String = chars[start..i].iter().collect();
-                let trimmed = phrase.trim();
+                let trimmed = trim_separators(&phrase);
                 if !trimmed.is_empty() {
-                    toks.push(Tok::Phrase(trimmed.to_owned()));
+                    toks.push((start, Tok::Phrase(trimmed.to_owned())));
                 }
                 i += 1; // past the closing quote (or the end)
             }
             '!' => {
-                toks.push(Tok::Not);
+                toks.push((i, Tok::Not));
                 i += 1;
             }
             '#' => {
@@ -158,11 +173,11 @@ fn lex(raw: &str) -> Vec<Tok> {
                 }
                 let word: String = chars[start..i].iter().collect();
                 if word.chars().count() > 1 {
-                    toks.push(Tok::TagWord(word[1..].to_owned()));
+                    toks.push((start, Tok::TagWord(word[1..].to_owned())));
                 } else {
                     // A bare "#" is an ordinary term (upstream requires
                     // token length >= 2 for a tag word, TagSearch.m:27-40).
-                    toks.push(Tok::Word(word));
+                    toks.push((start, Tok::Word(word)));
                 }
             }
             _ => {
@@ -178,7 +193,7 @@ fn lex(raw: &str) -> Vec<Tok> {
                         i += 1;
                     }
                     let name: String = chars[name_start..i].iter().collect();
-                    toks.push(Tok::TagOp(name));
+                    toks.push((i, Tok::TagOp(name)));
                 } else {
                     let start = i;
                     while i < chars.len() && !is_word_break(chars[i]) {
@@ -189,17 +204,56 @@ fn lex(raw: &str) -> Vec<Tok> {
                     // other case is an ordinary term (row 59: NV
                     // lowercased queries, so lowercase keywords never
                     // meant operators upstream).
-                    match word.as_str() {
-                        "AND" => toks.push(Tok::And),
-                        "OR" => toks.push(Tok::Or),
-                        "NOT" => toks.push(Tok::Not),
-                        _ => toks.push(Tok::Word(word)),
-                    }
+                    let tok = match word.as_str() {
+                        "AND" => Tok::And,
+                        "OR" => Tok::Or,
+                        "NOT" => Tok::Not,
+                        _ => Tok::Word(word),
+                    };
+                    toks.push((start, tok));
                 }
             }
         }
     }
     toks
+}
+
+fn lex(raw: &str) -> Vec<Tok> {
+    lex_with_offsets(raw)
+        .into_iter()
+        .map(|(_, tok)| tok)
+        .collect()
+}
+
+/// One scanner-visible token of a resume-eligible query: exactly the
+/// segmentation the parser sees, so the incremental filter's needles
+/// and the oracle's can never disagree. Only these three kinds can
+/// appear in a resume-eligible stream (operators, groups, and
+/// `tag:` operators make `resume_eligible` false).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PlainToken {
+    /// A bare word; the scan needle is the folded text.
+    Word(String),
+    /// A quoted run; the scan needle is the folded text.
+    Phrase(String),
+    /// A `#xyz` word; the scan needle is the folded `#xyz` literal.
+    TagWord(String),
+}
+
+/// Tokenize a query for the incremental scan. Call only for
+/// resume-eligible queries ([`resume_eligible`]); for anything else
+/// the parser's AST governs via the naive re-filter path. Offsets are
+/// char offsets into `raw`, pointing at the needle's first character.
+pub fn plain_tokens(raw: &str) -> Vec<(usize, PlainToken)> {
+    lex_with_offsets(raw)
+        .into_iter()
+        .filter_map(|(start, tok)| match tok {
+            Tok::Word(w) => Some((start, PlainToken::Word(w))),
+            Tok::Phrase(p) => Some((start, PlainToken::Phrase(p))),
+            Tok::TagWord(n) => Some((start, PlainToken::TagWord(n))),
+            _ => None,
+        })
+        .collect()
 }
 
 struct Parser {
@@ -228,7 +282,17 @@ impl Parser {
         let mut items = vec![self.parse_and()?];
         while self.peek() == Some(&Tok::Or) {
             self.pos += 1;
-            items.push(self.parse_and()?);
+            // An OR operand that turns up empty is a missing operand
+            // ("a OR", "(a OR)"), not an empty group: only "()" with
+            // no OR before it means EmptyGroup.
+            let operand = self.parse_and().map_err(|err| {
+                if err == QueryError::EmptyGroup {
+                    QueryError::MissingOperand
+                } else {
+                    err
+                }
+            })?;
+            items.push(operand);
         }
         if items.len() == 1 {
             Ok(items.pop().unwrap())
@@ -348,7 +412,7 @@ pub fn parse(raw: &str) -> Result<Option<Expr>, QueryError> {
 }
 
 /// How many `#xyz` tag words the query carries. Upstream's
-/// `NVTagWordCount` (`TagSearch.m:44-55`): a count increase between
+/// `NVTagWordCount` (`TagSearch.m:52-60`): a count increase between
 /// the previous and current query forces a full re-filter from all
 /// notes, because tag words match against data the token resume does
 /// not cover. `#unix:admin` counts once (the `#unix` word).
@@ -359,17 +423,20 @@ pub fn tag_word_count(raw: &str) -> usize {
         .count()
 }
 
-/// Whether the query's token stream is free of operators and groups:
-/// only then do its words, phrases, and tag words mean the same thing
-/// to the NV strsep tokenizer the incremental resume scans with as to
-/// the parser (`And[Term("o"), Term("ut")]` parsed from `"O& üt"` is
-/// a plain AST, but the token scan would hunt the raw needle `o&`).
-/// Operator and group queries must take the naive re-filter path.
+/// Whether the query's token stream is free of operators, groups, and
+/// the full-name tag operator: only then do its words, phrases, and
+/// `#tag` words mean the same thing to the NV strsep tokenizer the
+/// incremental resume scans with as to the parser. Two static
+/// counterexamples pin the rule: `"O& ut"` parses to a plain chain
+/// but the token scan would hunt the raw needle `o&`, and `tag:x`
+/// parses to a full-name tag word but the strsep scan (where `:` is a
+/// separator) would hunt `tag` AND `x` instead of the literal `#x`.
+/// Anything else takes the naive re-filter path.
 pub fn resume_eligible(raw: &str) -> bool {
     lex(raw).iter().all(|tok| {
         !matches!(
             tok,
-            Tok::And | Tok::Or | Tok::Not | Tok::LParen | Tok::RParen
+            Tok::And | Tok::Or | Tok::Not | Tok::LParen | Tok::RParen | Tok::TagOp(_)
         )
     })
 }
