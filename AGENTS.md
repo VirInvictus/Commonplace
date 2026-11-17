@@ -66,6 +66,31 @@ any of the upstream projects; "Notational Velocity", "nvALT", and
   authoritative. No cloud sync: files stay syncthing-safe by design.
 - Atomic writes only; the engine never leaves a half-written note.
 
+## Documentation surfaces
+
+Five files, one job each. Update them as the coding happens, in the
+same commits as the changes they describe, never in a later sweep;
+the roadmap's documentation catch-up milestones (M1, M2, and Phase
+24) exist to catch what slipped, not to carry planned work.
+
+- `README.md`: all user-facing information, organized like the rest
+  of the fleet (tagline, status, what it does, upstream
+  acknowledgment, build, license). Present-tense claims only for
+  shipped behavior; future features stay future-tensed.
+- `AGENTS.md`: all programmer- and agent-facing information: build
+  and test commands, conventions, decisions and their rationale,
+  port rules, license posture. A decision is not landed until it is
+  recorded here or in the roadmap's decision ledger, in the same
+  commit as the change it governs.
+- `spec.md`: structural and semantic changes; the contract of record
+  and the heart of the system. Spec first, then code: code that
+  disagrees with spec is always a code bug.
+- `patchnotes.md`: everything changed on each version, newest first.
+  There is no Unreleased section, ever: work either sits unlanded or
+  lands released, and every entry corresponds to a tag.
+- `roadmap.md`: the phase plan with checkboxes. Tick the box in the
+  commit that ships the work, never in a batch after the fact.
+
 ## Release flow
 
 Standard fleet flow: bump `VERSION` + workspace `Cargo.toml` together,
@@ -73,4 +98,9 @@ prepend the `patchnotes.md` entry (newest first, `## vX.Y.Z (YYYY-MM-DD)`
 headings), tick the shipped `roadmap.md` boxes, then commit + push and
 wait for green CI before cutting the annotated `v*` tag (tag message =
 the full patchnotes entry, extracted verbatim, `--cleanup=verbatim`).
-Cutting the tag itself stays approval-gated with Brandon.
+**Every tag is followed, in the same session, by a GitHub Release**
+(`gh release create vX.Y.Z --title <the entry's heading line>
+--notes-file <the same scratch file>`): a tag without its Release is
+a defect, not a done item; the 2026-11-11 fleet backfill exists
+because 184 tags had no releases. Cutting the tag itself stays
+approval-gated with Brandon.

@@ -5,6 +5,15 @@ nvUltra surface get ported, in what order, and the decisions each phase
 must answer first. Phases are sequential by dependency, not by calendar;
 within a phase, work is shippable to `main` incrementally.
 
+**Checklists.** Every phase carries checkboxes. Tick a box in the
+commit that ships the work, never in a batch after the fact, and never
+leave an "Unreleased" holding pen: landed work lands released
+(patchnotes entry, VERSION bump, tag, GitHub Release; see AGENTS.md,
+"Documentation surfaces" and "Release flow"). Documentation updates
+ride the same commits as the code they describe; the three
+documentation catch-up milestones below exist to catch what slipped,
+never to carry planned work.
+
 **How to read a phase.** Every phase names the upstream code it ports
 with `file:line` citations into the research corpus:
 
@@ -65,6 +74,10 @@ Deliverables: `commonplace-core::store` with `load_folder`,
 fixture folders (titles, caps, weird filenames, dotfiles, empty notes,
 BOMs), all headless.
 
+- [ ] `store::load_folder` + `Note` + sorted stable view
+- [ ] golden fixture-folder tests pass headless
+- [ ] docs carried: spec divergence rows, patchnotes entry
+
 ## Phase 2: Engine: query language
 
 Goal: one parser covering the three documented grammars of the line,
@@ -89,6 +102,11 @@ parens > NOT > AND > OR), AST, golden tests over both upstream
 vocabularies and the nvUltra manual's examples (`#startrek AND (worf
 OR geordi) NOT picard`).
 
+- [ ] lexer + parser + AST
+- [ ] the two DECISION rows recorded in spec §5 before code lands
+- [ ] golden tests over both upstream vocabularies + manual examples
+- [ ] docs carried: spec §5 rows, patchnotes entry
+
 ## Phase 3: Engine: matcher, incremental filter, ordering
 
 Goal: reproduce the famous as-you-type feel headlessly, and prove it
@@ -110,6 +128,11 @@ Deliverables: `search` module with the incremental state machine
 typed in Rust (`FilterState` carries the previous query + candidate
 set), property tests (result set == naive re-filter at every step),
 a 10k-note benchmark with a latency gate recorded in the test.
+
+- [ ] `search` module: incremental `FilterState` + stable sort + selection rule
+- [ ] property tests (incremental == naive at every step)
+- [ ] 10k-note benchmark with a recorded latency gate
+- [ ] docs carried: spec rows, patchnotes entry
 
 ## Phase 4: Engine: write path
 
@@ -139,6 +162,12 @@ Deliverables: `store::write`: create, rename, delete, atomic save,
 rescan-reconcile. Tests: collision tables, rename revert, atomicity
 under simulated crash (kill mid-write), conflict-file admission.
 
+- [ ] create / rename (revert-on-failure, link rewrite) / delete-to-trash
+- [ ] atomic save + rescan-reconcile
+- [ ] the trash DECISION answered in the ledger before code lands
+- [ ] tests: collision tables, rename revert, crash-mid-write, conflict admission
+- [ ] docs carried: spec rows, patchnotes entry
+
 ## Phase 5: Engine: tags, metadata blocks, links
 
 Goal: the portable tag store and the link graph, with no xattrs.
@@ -159,6 +188,12 @@ blank-line terminated), link extraction + rename rewriting hookup for
 Phase 4, derived backlink index [CP, brief §2 gap]. Tests: golden
 blocks, transclusion cycles rejected, backlink correctness under
 rename.
+
+- [ ] metadata-block parser
+- [ ] link extraction + rename rewriting hookup
+- [ ] derived backlink index
+- [ ] tests: golden blocks, transclusion cycles, backlinks under rename
+- [ ] docs carried: spec rows (incl. the Finder-tag divergence), patchnotes
 
 ## Phase 6: Engine: render boundary + renderer decision
 
@@ -191,6 +226,12 @@ sanctioned dependency. Tests: trait contract, transclusion expansion,
 math/mermaid/wikilink detection flags (map §5
 `NVPreviewHTMLPreparingContent`).
 
+- [ ] renderer DECISION answered in the ledger
+- [ ] `render::Renderer` trait + test stub in core
+- [ ] renderer wiring in the frontend crates (sanctioned dependency)
+- [ ] transclusion expansion + detection-flag tests
+- [ ] docs carried: spec rows, patchnotes entry
+
 ## Phase 7: Engine: export + import core
 
 Goal: file-in, file-out parity for the formats Commonplace keeps.
@@ -203,6 +244,11 @@ machinery with no Linux analog), Textile, Stickies import, .blor.
 Deliverables: `export` verbs in core (dir of notes → dir of exports;
 single note → HTML/text). Tests: round-trip idempotence
 (export → re-import == byte-stable for text), HTML well-formedness.
+
+- [ ] export verbs (dir → dir; single note → HTML/text)
+- [ ] round-trip idempotence + well-formedness tests
+- [ ] the cut list recorded in spec §4
+- [ ] docs carried: spec §4, patchnotes entry
 
 ## Phase 8: CLI: verb surface + machine shapes
 
@@ -221,6 +267,12 @@ Deliverables: verbs over the Phase 1-7 engine, `--json` golden
 shapes, README usage section. Tests: exit-code table, json schema
 snapshots.
 
+- [ ] verb surface over the Phase 1-7 engine
+- [ ] `--json` envelopes + exit-code table tests
+- [ ] config file + default notes dir
+- [ ] README usage section (user-facing docs, not deferred)
+- [ ] docs carried: spec §6 exits, patchnotes entry
+
 ## Phase 9: CLI: saved searches, scheme half, completions
 
 Ports [ULTRA]: saved searches with hotkey slots ⌘1-⌘9/⌘0 (ultra §1)
@@ -229,6 +281,12 @@ and reused by the app's Phase 17 [CP shared store]. Shell completions
 [CP]. The URL-scheme verbs get their CLI entry points here
 (`find`/`make`/`markdownify` argument handling), sharing Phase 18's
 routes.
+
+- [ ] saved-search store + `--saved N`
+- [ ] shell completions
+- [ ] scheme-verb CLI entry points sharing Phase 18 routes
+- [ ] docs carried: patchnotes entry, README machine surface
+- [ ] M1 fired (documentation catch-up milestone below)
 
 ## Phase 10: App: shell, list, watching
 
@@ -251,6 +309,13 @@ Deliverables: window that opens a collection, lists notes live
 against external edits, sorts, keyboard-navigates the list.
 Tests: headless where possible; the watch behavior gets an
 integration test with a temp dir.
+
+- [ ] window + two-pane vertical layout + sort picker + empty state
+- [ ] list widget DECISION answered at phase open
+- [ ] vir-gtk styling + Kanagawa from day one
+- [ ] file watching (DECISION answered; reconcile stays the truth)
+- [ ] watch integration test (temp dir + external edits)
+- [ ] docs carried: spec rows, patchnotes entry
 
 ## Phase 11: App: the search-field state machine
 
@@ -277,6 +342,12 @@ as a state machine (headless model + thin GTK shell over it, the
 Quire evaluator pattern). Tests: the full AppController behavior
 table as unit tests on the model.
 
+- [ ] headless state-machine model (Quire evaluator pattern)
+- [ ] the full AppController behavior table as unit tests
+- [ ] thin GTK shell wiring over the model
+- [ ] launch restore (last search + last note + scroll)
+- [ ] docs carried: spec rows, patchnotes entry
+
 ## Phase 12: App: editor pane
 
 Goal: the plain-text editing core under the Markdown layer.
@@ -297,6 +368,12 @@ Deliverables: GtkSourceView pane with markdown lang, autosave,
 undo, scroll memory, word count, external-editor round trip.
 Tests: editor-model tests headless; autosave debounce timing test.
 
+- [ ] GtkSourceView pane with markdown lang
+- [ ] autosave (DECISION answered) + debounce timing test
+- [ ] per-note undo + scroll/caret restore + word count (cap contract)
+- [ ] external-editor round trip ($EDITOR + picker)
+- [ ] docs carried: spec rows, patchnotes entry
+
 ## Phase 13: App: Markdown editing I: highlighting + tasks
 
 Ports [ALT] (delta §6, the UX contract): markdown syntax
@@ -313,6 +390,13 @@ suppressed inside fences (`TaskList.h` semantics, delta §6);
 Deliverables + tests: a highlight-model crate module (pure
 computation: ranges from buffer text) tested headless against the
 upstream contract table, thin sourceview wiring.
+
+- [ ] highlight model (pure ranges-from-buffer module)
+- [ ] 300KB cap contract implemented + tested
+- [ ] task-list behavior set (toggle, click, continuation, fence suppression)
+- [ ] ==highlight==/CriticMarkup spans from theme
+- [ ] thin sourceview wiring
+- [ ] docs carried: spec rows, patchnotes entry
 
 ## Phase 14: App: Markdown editing II: lists, fences, pairs, reflinks
 
@@ -331,6 +415,13 @@ Ctrl-Cmd-Up/Down; expand/shrink selection by Markdown structure
 Deliverables + tests: same pattern: pure buffer-transform functions
 with golden tables, then keybinding wiring. The full nvALT shortcut
 table lands as the default keymap (delta §1 3.0.7 batch).
+
+- [ ] buffer-transform functions (lists, fences, renumbering, markers)
+- [ ] auto-pairing + reference-link completion + F6/F7
+- [ ] paragraph move + expand/shrink selection
+- [ ] golden transform tables headless
+- [ ] default keymap = the nvALT shortcut table
+- [ ] docs carried: spec rows, patchnotes entry
 
 ## Phase 15: App: preview pane
 
@@ -351,6 +442,15 @@ save-HTML export (map §5).
 Cut with rationale [CP]: Marked handoff, `x-marked://stream/`,
 share-to-Marked (macOS app interop; map §5).
 
+- [ ] live preview + debounce contract (0.05s / 0.6s)
+- [ ] >300KB slicing contract
+- [ ] in-place content swap + scroll preservation
+- [ ] scroll-to-edit via sourcepos
+- [ ] themes (XDG dir, import, `#wrapper`) + templates
+- [ ] math DECISION answered; mermaid + highlight.js + wikilink injection
+- [ ] save-HTML export; the Marked cuts recorded in spec §4
+- [ ] docs carried: spec rows, patchnotes entry
+
 ## Phase 16: App: collections (notebooks)
 
 Ports [ULTRA]: unlimited simultaneous notebooks/collections, folder
@@ -363,6 +463,12 @@ Deliverables: multi-collection config, switcher UI, per-collection
 store instances. Tests: config round-trip, cross-collection
 isolation.
 
+- [ ] multi-collection config + switcher UI
+- [ ] per-collection settings + store instances
+- [ ] subfolder flat display + slash-title creation
+- [ ] config round-trip + isolation tests
+- [ ] docs carried: spec rows, patchnotes entry
+
 ## Phase 17: App: tags UI, bookmarks, row editing
 
 Ports [ALT]: label/tag sidebar (`LabelsListController` map §1.6),
@@ -374,6 +480,12 @@ Ports [NV]: bookmarks/snapback as note+searchString pairs
 (`BookmarksController` map §1.7). Ports [ULTRA]: saved searches on
 ⌘1-⌘9/⌘0 over the Phase 9 shared store.
 
+- [ ] tag sidebar + tag-token chips + multi-note apply
+- [ ] in-row title/tag editing (Phase 10's DECISION pays here)
+- [ ] bookmarks/snapback
+- [ ] saved searches on hotkey slots
+- [ ] docs carried: spec rows, patchnotes entry
+
 ## Phase 18: App: URL scheme + deep linking + single instance
 
 Ports [ALT] (delta §3 route table): `commonplace://find/<terms>`
@@ -384,6 +496,12 @@ nvALT-compatible) means Commonplace also answers `x-nvultra://find`
 shape-for-shape [CP courtesy]. Linux mechanics [CP]: `.desktop`
 x-scheme-handler registration (brief §3), GTK single-instance
 activation with the URL routed to the running window.
+
+- [ ] route table (find/make/markdownify/add-theme/bare-host)
+- [ ] `x-nvultra://find` shape compatibility
+- [ ] `.desktop` scheme-handler registration
+- [ ] single-instance activation routing URLs to the running window
+- [ ] docs carried: spec rows, patchnotes entry, README automation section
 
 ## Phase 19: App: preferences + theming
 
@@ -401,6 +519,13 @@ Deliverables: prefs model (typed config structs + GTK UI), theme
 file format = nvALT-compatible `.theme` JSON where feasible [ALT
 interoperability, map §1.5 NVTheme] and plain CSS preview themes.
 
+- [ ] prefs model (typed config structs)
+- [ ] the five panes (General/Editing/Fonts & Colors/Notes/Debug)
+- [ ] `.theme` compatibility + CSS preview themes
+- [ ] hidden keys carried as config keys where they make sense
+- [ ] docs carried: spec rows, patchnotes entry
+- [ ] M2 fired (documentation catch-up milestone below)
+
 ## Phase 20: Hardening: sync-safety, perf, large notes
 
 Goal: make invariant 4 (Syncthing-safe) and invariant 7 (10k notes,
@@ -414,6 +539,14 @@ end-to-end (highlighting off, renumber off, fence-close skip, word
 count blank, preview sliced, delay 0.6s) asserted in one integration
 suite; 10k-note benchmark gates (filter keystroke budget, cold load
 budget) in CI; fractional-scale + Wayland smoke pass (brief §3).
+
+- [ ] convergence tests (editor + CLI + external writer interleaved)
+- [ ] conflict-file lifecycle test
+- [ ] no-lock/no-sidecar audit of the notes tree
+- [ ] 300KB contracts end-to-end in one integration suite
+- [ ] 10k-note perf gates wired into CI
+- [ ] fractional-scale + Wayland smoke pass
+- [ ] docs carried: spec invariant evidence, patchnotes entry
 
 ## Phase 21: Importers
 
@@ -430,6 +563,13 @@ Rust crate in the CLI/app wiring, or a minimal in-core converter
 porting the upstream HTMLToMarkdown semantics; recommendation:
 sanctioned crate, benchmarked against upstream behavior examples).
 
+- [ ] URL import + markdownify verb
+- [ ] file-drop / batch import
+- [ ] Simplenote export-archive importer (one-way, per the ledger)
+- [ ] converter DECISION answered
+- [ ] Safari-extension cut recorded in spec §4
+- [ ] docs carried: spec §4, patchnotes entry, README import section
+
 ## Phase 22: Encryption (gated, optional)
 
 Upstream context [NV]: transparent library encryption was an NV
@@ -443,6 +583,10 @@ tree), (c) defer with an explicit spec note (recommendation: c for
 1.0; revisit post-1.0 with real usage). The gate must be answered
 even if the answer is "defer".
 
+- [ ] the gate answered in the ledger (even if the answer is "defer")
+- [ ] if greenlit: implementation + tests
+- [ ] docs carried: spec §4 outcome, patchnotes entry
+
 ## Phase 23: Packaging + release infrastructure
 
 Deliverables: real logo (placeholder dies), desktop file +
@@ -453,6 +597,14 @@ manifest `io.github.virinvictus.Commonplace` (app-id split note:
 already in the right namespace), scheme-handler registration riding
 the desktop file, first real release with the verbatim-tag
 procedure.
+
+- [ ] real logo (placeholder dies)
+- [ ] desktop file + metainfo + icons
+- [ ] hardened `release.yml` (artifact attached to the Release)
+- [ ] Flatpak manifest in the right namespace
+- [ ] first tagged release: verbatim tag message + GitHub Release in
+      the same session (AGENTS.md release rule)
+- [ ] docs carried: README install/usage truth, patchnotes entry
 
 ## Phase 24: Parity audit + 1.0
 
@@ -465,6 +617,36 @@ refuted row); doc-drift + release-audit fleet passes; the perf
 gates re-run on real note collections; patchnotes + roadmap
 reconciliation; 1.0 tagged only after all of it is green.
 Post-1.0 the flag/verb surface is additive (spec §7).
+
+- [ ] parity table verified row-by-row (claim-verifier dispatch)
+- [ ] doc-drift + release-audit passes green
+- [ ] perf gates re-run on real note collections
+- [ ] patchnotes + roadmap reconciliation (M3)
+- [ ] 1.0 tagged + GitHub Release cut
+
+---
+
+## Documentation catch-up milestones
+
+Documentation updates ride the commits that ship the code (AGENTS.md,
+"Documentation surfaces"); there is no Unreleased holding pen and no
+deferred docs sweep. These milestones exist only to catch what
+slipped. Each is a full five-surface pass (README, AGENTS.md, spec,
+patchnotes, roadmap) plus a `doc-drift-auditor` dispatch, and any
+drift it finds is fixed in the same session.
+
+- [ ] **M1, fires at the end of Phase 9** (engine + CLI arc
+      complete): all five surfaces re-read against the shipped
+      engine and CLI verbs; spec §5 phase references re-checked;
+      README's CLI usage section verified against the real verbs and
+      exit codes.
+- [ ] **M2, fires at the end of Phase 19** (app arc complete): same
+      pass over the GUI surface; README gains real screenshots and
+      keyboard-flow docs; AGENTS.md's decisions and the ledger
+      reconciled; every parity row touched by Phases 10-19
+      re-verified.
+- [ ] **M3 = Phase 24**: the 1.0 audit is the final catch-up;
+      nothing ships 1.0 with a stale claim anywhere.
 
 ---
 
