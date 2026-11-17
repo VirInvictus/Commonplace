@@ -27,27 +27,27 @@ use crate::note::{Note, NoteBody, NoteTitle};
 /// The plain-text extensions admitted at scan time, nvALT's
 /// PlainTextFormat set (`NotationPrefs.m:252-262`). Matching is
 /// case-insensitive (`pathExtensionAllowed:`,
-/// `NotationPrefs.m:1032-1042`). `md` is upstream's default for new
+/// `NotationPrefs.m:1072-1081`). `md` is upstream's default for new
 /// notes; as a read-side table every entry admits equally.
 pub const PLAIN_TEXT_EXTENSIONS: [&str; 5] = ["md", "txt", "text", "utf8", "taskpaper"];
 
 /// Upstream metadata filenames skipped at scan, matched exactly and
 /// case-sensitively (`catalogEntryAllowed:`,
-/// `NotationPrefs.m:1096-1101`). A file named `Notes & Settings.md`
+/// `NotationPrefs.m:1093-1098`). A file named `Notes & Settings.md`
 /// is a different filename and is admitted like any note.
 const SKIPPED_FILENAMES: [&str; 2] = ["Notes & Settings", "Interim Note-Changes"];
 
 /// A non-fatal, per-file problem found while loading a folder. Where
 /// the file's metadata was readable the note is still admitted with an
 /// empty body, mirroring upstream's blank-note-when-undecodable
-/// behavior (`NoteObject.m:585-592`); nothing is ever dropped
+/// behavior (`NoteObject.m:588-595`); nothing is ever dropped
 /// silently (spec §5 row 56).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadWarning {
     /// The file's bytes are not valid UTF-8. Admitted with an empty
     /// body; the derived title is "Untitled Note" (upstream parallel:
-    /// `updateFromData:` failure leaves a blank note,
-    /// `NoteObject.m:1589-1592`).
+    /// `updateFromData:` fails at `NoteObject.m:1577-1580`, and the
+    /// blank note `initWithCatalogEntry:` keeps is m:588-595).
     InvalidUtf8 { path: PathBuf },
     /// The file could not be read (permissions, vanished mid-scan).
     /// Admitted with an empty body when stat succeeded; entries that
@@ -181,20 +181,23 @@ pub fn load_folder(folder: &Path) -> Result<LoadOutcome, StoreError> {
 /// unadmitted extensions, and anything that is not a regular file.
 fn load_entry(name: &OsStr, path: &Path, warnings: &mut Vec<LoadWarning>) -> Option<Note> {
     let name_bytes = name.as_encoded_bytes();
-    // Hidden files (catalogEntryAllowed:, NotationPrefs.m:1089-1091).
+    // Hidden files (catalogEntryAllowed:, NotationPrefs.m:1090-1091).
     if name_bytes.first() == Some(&b'.') {
         return None;
     }
-    // The single-DB archive and WAL filenames (m:1093-1101).
+    // The single-DB archive and WAL filenames (m:1093-1098).
     if SKIPPED_FILENAMES
         .iter()
         .any(|skip| name_bytes == skip.as_bytes())
     {
         return None;
     }
-    // Extension admission, case-insensitive (m:1104-1106 +
-    // pathExtensionAllowed:). Compared on raw bytes so a non-UTF-8
-    // file name with an ASCII extension still admits losslessly.
+    // Extension admission, case-insensitive (the call at
+    // NotationPrefs.m:1100 + pathExtensionAllowed: m:1072-1081).
+    // Compared on raw bytes so a non-UTF-8 file name with an ASCII
+    // extension still admits losslessly. Upstream's second admission
+    // channel, legacy Mac OSTypes (m:1103-1108), has no Linux
+    // equivalent and is not ported.
     let extension_admitted = path
         .extension()
         .map(|ext| {
@@ -224,12 +227,16 @@ fn load_entry(name: &OsStr, path: &Path, warnings: &mut Vec<LoadWarning>) -> Opt
     if !meta.is_file() {
         return None;
     }
+    // modified() has no failure mode on Linux statx; the UNIX_EPOCH
+    // fallback exists for exotic platforms only. Phase 1 never sorts
+    // or reconciles on mtime, and the Phase 4 reconcile pass re-stats
+    // by path before trusting it, so a placeholder is safe there.
     let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
 
     // Decode. Stat-able but unreadable or undecodable files are
     // admitted with an empty body and a warning (upstream parallel:
     // the blank note left behind when updateFromData: fails,
-    // NoteObject.m:585-592).
+    // NoteObject.m:588-595).
     let (body, warning) = match fs::read(path) {
         Ok(bytes) => match NoteBody::from_utf8(&bytes) {
             Ok(body) => (body, None),

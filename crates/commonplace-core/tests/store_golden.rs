@@ -304,6 +304,7 @@ fn externally_named_file_titles_from_content() {
 }
 
 #[test]
+#[cfg(unix)]
 fn non_utf8_filename_with_admitted_extension_loads_losslessly() {
     use std::os::unix::ffi::OsStrExt;
     let folder = TempFolder::new("raw-name");

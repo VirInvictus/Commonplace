@@ -20,7 +20,8 @@ use std::time::SystemTime;
 const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
 
 /// The title cap upstream passes to the title extraction (60 chars;
-/// `syntheticTitleAndTrimmedBody`, `NSString_NV.m:335-339`).
+/// the `maxTitleLen:60` call in `syntheticTitleAndTrimmedBody:`,
+/// `NSString_NV.m:323-328`).
 pub const TITLE_CAP: usize = 60;
 
 /// A single note, backed by one plain-text file on disk.
