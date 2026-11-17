@@ -1,0 +1,17 @@
+[package]
+name = "commonplace"
+description = "Search-becomes-creation notes for Linux, in the Notational Velocity lineage (GTK4)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "commonplace"
+path = "src/main.rs"
+
+[dependencies]
+commonplace-core = { path = "../commonplace-core" }
+# GtkSourceView joins at the editor phase; the skeleton window needs
+# only the base GTK4 API.
+gtk4 = { version = "0.11", features = ["v4_10"] }

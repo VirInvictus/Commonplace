@@ -1,0 +1,15 @@
+[package]
+name = "commonplace-cli"
+description = "Scriptable half of Commonplace: search, open, create, and export notes from the shell"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "commonplace-cli"
+path = "src/main.rs"
+
+[dependencies]
+commonplace-core = { path = "../commonplace-core" }
+# stdlib arg parsing for now; a parser choice is a CLI-phase decision.
