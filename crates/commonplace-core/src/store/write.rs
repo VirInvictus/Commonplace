@@ -115,6 +115,137 @@ pub fn derive_filename(
 }
 
 impl Store {
+    /// Rename a note to a new title: the filename derives under the
+    /// row-4 rules (the note's own extension is kept when still
+    /// admitted, per the keep rule at `NotationFileManager.m:423-428`),
+    /// `rename(2)` moves the file, and the CONTENT'S FIRST LINE is
+    /// rewritten to the new title so the rename survives a reload
+    /// (row 55 derives display titles from content; upstream kept the
+    /// title in its database and never touched content, a difference
+    /// the files-first model cannot afford). The atomic chain means a
+    /// failed rename reverts by construction: upstream's mid-flow
+    /// revert (`NoteObject.m:817-823`) could leave title and file
+    /// desynced; here nothing happens.
+    ///
+    /// A rename whose new title differs only by case is a real rename
+    /// (upstream compared case-sensitively, `_setTitleString:`
+    /// m:794-795); an identical title is a no-op.
+    pub fn rename_note(&mut self, path: &Path, new_title: &str) -> Result<Note, WriteError> {
+        if new_title.trim().is_empty() {
+            return Err(WriteError::EmptyTitle);
+        }
+        let index = match self.index_of(path) {
+            Some(index) => index,
+            None => {
+                return Err(WriteError::NoteNotFound {
+                    path: path.to_owned(),
+                });
+            }
+        };
+        let old_display_title = self.notes[index].title.as_str().to_owned();
+        if new_title == old_display_title {
+            return Ok(self.notes[index].clone());
+        }
+        let old_path = self.notes[index].path.clone();
+
+        // Keep the note's own extension when it is still admitted
+        // (m:423-428); new names otherwise take the default.
+        let extension = old_path
+            .extension()
+            .map(|e| e.to_string_lossy().into_owned())
+            .filter(|e| {
+                crate::store::PLAIN_TEXT_EXTENSIONS
+                    .iter()
+                    .any(|allowed| e.eq_ignore_ascii_case(allowed))
+            })
+            .unwrap_or_else(|| DEFAULT_EXTENSION.to_owned());
+        let stems = self.taken_stems(Some(&old_path));
+        let folder = self.folder.clone();
+        let taken = |candidate: &str| {
+            let folded_candidate = candidate.to_lowercase();
+            stems.contains(&folded_candidate)
+                || folder.join(format!("{candidate}.{extension}")).exists()
+        };
+        let filename = derive_filename(new_title, &extension, taken);
+        let new_path = folder.join(&filename);
+        let final_path = new_path.clone();
+
+        if new_path != old_path {
+            fs::rename(&old_path, &new_path).map_err(|source| WriteError::Io {
+                path: old_path.clone(),
+                source,
+            })?;
+        }
+
+        // Rewrite the content's first line; everything after it,
+        // including its line-ending style, stays byte for byte.
+        let body = self.notes[index].body.as_str();
+        let rest = match body.split_once('\n') {
+            Some((_, rest)) => rest.to_owned(),
+            None => String::new(),
+        };
+        let new_content = format!("{new_title}\n{rest}");
+        atomic_write(&new_path, new_content.as_bytes())?;
+
+        let note = &mut self.notes[index];
+        note.path = new_path;
+        note.body = NoteBody::of(&new_content);
+        note.title = NoteTitle::from_body(note.body.as_str());
+        note.folded_title = fold(note.title.as_str()).into_boxed_str();
+        if let Ok(meta) = fs::metadata(&note.path) {
+            if let Ok(mtime) = meta.modified() {
+                note.mtime = mtime;
+            }
+            if let Ok(created) = meta.created() {
+                note.created = created;
+            }
+        }
+        self.reindex();
+        // Row 65's [CP] improvement: inbound [[links]] matching the
+        // old title fold to the new title. The extractor lands with
+        // Phase 5; the hookup call is already here.
+        self.rewrite_inbound_links(&old_display_title, new_title);
+        match self.index_of(&final_path) {
+            Some(i) => Ok(self.notes[i].clone()),
+            None => Err(WriteError::NoteNotFound { path: final_path }),
+        }
+    }
+
+    /// The rename-time link rewrite, called by [`Store::rename_note`]
+    /// after a successful rename: notes whose bodies carry
+    /// `[[links]]` matching the old display title (folded) are
+    /// rewritten to the new title and atomically saved. The extractor
+    /// lands with Phase 5 (row 65); until then the hookup is inert.
+    pub(crate) fn rewrite_inbound_links(&mut self, _old_title: &str, _new_title: &str) {}
+
+    /// Delete a note through the injected removal sink: the engine
+    /// never links a trash dependency (row 7), so the caller decides
+    /// freedesktop-trash (the app crate wires the `trash` crate at
+    /// Phase 10+) or plain unlink (the CLI may). A sink failure
+    /// leaves the note loaded; a success removes it from the arena.
+    pub fn delete_note(
+        &mut self,
+        path: &Path,
+        remove: impl FnOnce(&Path) -> io::Result<()>,
+    ) -> Result<(), WriteError> {
+        let index = match self.index_of(path) {
+            Some(index) => index,
+            None => {
+                return Err(WriteError::NoteNotFound {
+                    path: path.to_owned(),
+                });
+            }
+        };
+        let disk_path = self.notes[index].path.clone();
+        remove(&disk_path).map_err(|source| WriteError::Io {
+            path: disk_path,
+            source,
+        })?;
+        self.notes.remove(index);
+        self.reindex();
+        Ok(())
+    }
+
     /// Create a note: the file's content is the title as the first
     /// line followed by the body, so a reload re-derives the same
     /// display title (row 55's content-derived rule). The filename
@@ -459,6 +590,133 @@ mod tests {
             "Stable\ncontent that survives"
         );
         assert!(reloaded.warnings.is_empty());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn rename_moves_the_file_and_rewrites_the_first_line() {
+        let dir = scratch("rename");
+        let mut store = crate::store::load_folder(&dir).unwrap().store;
+        let note = store.create_note("First Title", "original body").unwrap();
+        let renamed = store.rename_note(&note.path, "Renamed Title").unwrap();
+        // Old path gone from disk and store; new path holds the new
+        // first line over the untouched rest.
+        assert!(!note.path.exists());
+        assert_eq!(
+            renamed.path.file_name().unwrap().to_str().unwrap(),
+            "Renamed Title.md"
+        );
+        assert_eq!(
+            fs::read_to_string(&renamed.path).unwrap(),
+            "Renamed Title\noriginal body"
+        );
+        assert_eq!(renamed.title.as_str(), "Renamed Title");
+        assert!(store.find_by_path(&note.path).is_none());
+        assert_eq!(
+            store.find_by_path(&renamed.path).unwrap().body.as_str(),
+            "Renamed Title\noriginal body"
+        );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn rename_keeps_an_admitted_extension() {
+        let dir = scratch("rename-ext");
+        fs::write(dir.join("Paper.txt"), "Paper Title\nthe text").unwrap();
+        let outcome = crate::store::load_folder(&dir).unwrap();
+        let mut store = outcome.store;
+        let renamed = store
+            .rename_note(&dir.join("Paper.txt"), "New Paper Name")
+            .unwrap();
+        assert_eq!(
+            renamed.path.file_name().unwrap().to_str().unwrap(),
+            "New Paper Name.txt"
+        );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn rename_excludes_itself_from_collisions() {
+        // A case-only rename ("Agenda" -> "AGENDA") must not collide
+        // with itself; upstream excluded the note (m:443).
+        let dir = scratch("rename-self");
+        let mut store = crate::store::load_folder(&dir).unwrap().store;
+        let note = store.create_note("Agenda", "items").unwrap();
+        let renamed = store.rename_note(&note.path, "AGENDA").unwrap();
+        assert_eq!(
+            renamed.path.file_name().unwrap().to_str().unwrap(),
+            "AGENDA.md"
+        );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn rename_rejects_an_empty_title() {
+        let dir = scratch("rename-empty");
+        let mut store = crate::store::load_folder(&dir).unwrap().store;
+        let note = store.create_note("Keep", "me").unwrap();
+        assert!(matches!(
+            store.rename_note(&note.path, "   "),
+            Err(WriteError::EmptyTitle)
+        ));
+        // Nothing changed.
+        assert!(note.path.exists());
+        assert!(store.find_by_path(&note.path).is_some());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn a_failed_rename_reverts_by_construction() {
+        let dir = scratch("rename-fail");
+        let mut store = crate::store::load_folder(&dir).unwrap().store;
+        let note = store.create_note("Solid", "content").unwrap();
+        // Deterministic failure injection: the collection folder
+        // vanishes, so rename(2) gets ENOENT.
+        fs::remove_dir_all(&dir).unwrap();
+        assert!(matches!(
+            store.rename_note(&note.path, "Moved Somewhere"),
+            Err(WriteError::Io { .. })
+        ));
+        // The store's memory is untouched: the note is still loaded
+        // under the old path with the old title.
+        let still = store.find_by_path(&note.path).unwrap();
+        assert_eq!(still.title.as_str(), "Solid");
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn delete_goes_through_the_injected_sink() {
+        let dir = scratch("delete");
+        let mut store = crate::store::load_folder(&dir).unwrap().store;
+        let keep = store.create_note("Keeper", "stays").unwrap();
+        let gone = store.create_note("Goner", "leaves").unwrap();
+        let mut seen: Option<PathBuf> = None;
+        store
+            .delete_note(&gone.path, |p| {
+                seen = Some(p.to_owned());
+                fs::remove_file(p)
+            })
+            .unwrap();
+        // The sink saw the note's disk path; the file is gone; the
+        // store keeps only the survivor.
+        assert_eq!(seen, Some(gone.path.clone()));
+        assert!(!gone.path.exists());
+        assert_eq!(store.len(), 1);
+        assert!(store.find_by_path(&keep.path).is_some());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn a_failing_sink_keeps_the_note_loaded() {
+        let dir = scratch("delete-fail");
+        let mut store = crate::store::load_folder(&dir).unwrap().store;
+        let note = store.create_note("Stays Put", "content").unwrap();
+        let sink_error = || -> io::Result<()> { Err(io::Error::other("trash refused")) };
+        assert!(matches!(
+            store.delete_note(&note.path, |_| sink_error()),
+            Err(WriteError::Io { .. })
+        ));
+        assert!(store.find_by_path(&note.path).is_some());
         cleanup(&dir);
     }
 }
