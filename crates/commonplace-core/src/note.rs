@@ -132,6 +132,12 @@ impl NoteBody {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// The body of a note that could not be read or decoded (the
+    /// store's warning paths).
+    pub fn empty() -> Self {
+        NoteBody(String::new())
+    }
 }
 
 #[cfg(test)]

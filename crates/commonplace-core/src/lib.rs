@@ -4,6 +4,7 @@
 //! `spec.md` at the workspace root.
 
 pub mod note;
+pub mod store;
 
 /// Crate version, mirrored from the workspace `VERSION`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

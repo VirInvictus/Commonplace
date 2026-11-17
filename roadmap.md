@@ -141,9 +141,11 @@ categories become free functions in per-class modules, except the two
 that are intrinsic model behavior (title extraction, body
 sanitization), which become inherent methods on `NoteTitle`/`NoteBody`.
 
-- [ ] `store::load_folder` + `Note` + sorted stable view
-- [ ] golden fixture-folder tests pass headless
-- [ ] docs carried: spec divergence rows, patchnotes entry
+- [x] `store::load_folder` + `Note` + sorted stable view
+- [x] golden fixture-folder tests pass headless
+- [x] docs carried: spec divergence rows (§5 rows 54-56; the patchnotes
+      entry lands with this phase's release, since nothing ships
+      untagged and release timing is decided after review)
 
 ## Phase 2: Engine: query language
 
@@ -914,7 +916,7 @@ drift it finds is fixed in the same session.
 | Highlighting: sourceview engine + Quire-style guarded passes, cap enforced before pass | 13 | decided (roadmap, house evidence) |
 | Paragraph-move: bind Ctrl-Cmd (ALT) AND Ctrl-Opt (ULTRA alias); headings: nvUltra's ungated Opt-Cmd-]/[ | 14 | decided (contract §4C) |
 | Keyboard translation: mac ⌘→Ctrl, ⌥→Alt, ⌃⌘X→Ctrl+Alt+X; collision pass (preview → Ctrl+Alt+P; paragraph-move convergence; line-shift unbound) | 14 | recommendation (roadmap translation layers), confirm at phase |
-| Text-index units: `char`s in-engine (caps and slices in chars, not bytes or UTF-16 units); bytes only at disk/comrak boundaries | 1 | recommendation (rust-model-notes), confirm at phase |
+| Text-index units: `char`s in-engine (caps and slices in chars, not bytes or UTF-16 units); bytes only at disk/comrak boundaries | 1 | decided (Phase 1 confirms: the title cap and its space window count chars, `note::NoteTitle`) |
 | Event bus: the 13-name nvALT notification inventory becomes the typed Event enum (2 dead names dropped) | 11 | decided (crosswalk §4) |
 | Write coalescing: two independent handles; user edits cancel the write coalescer but never the fsync cadence | 4 | decided (crosswalk §10, upstream comment cited) |
 | Undo contracts: undo dirties the file; group nesting during undo; per-note stacks with stored closures | 12 | decided (crosswalk §9, upstream behavior) |

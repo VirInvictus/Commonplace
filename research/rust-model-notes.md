@@ -90,6 +90,29 @@ pub struct SearchCaches {
 // owns the proof).
 ```
 
+### Phase 1 outcome (2026-11-17): what the code decided
+
+The sketches above are superseded where Phase 1's shipped code differs
+(`crates/commonplace-core/src/{note,store}.rs`):
+
+- **Landed**: `Note { path, title: NoteTitle, body: NoteBody, mtime }`.
+  Title and body are newtypes, per the crosswalk's intrinsic-behavior
+  rule (`research/objc-rust-crosswalk.md` §3): `NoteTitle::from_body`
+  carries the first-line rule, `NoteBody::from_utf8` the UTF-8/BOM
+  decode. `title_override` waits for Phase 5.
+- **Landed**: `store::load_folder(folder) -> Result<LoadOutcome,
+  StoreError>` where `LoadOutcome { store, warnings }` adds a
+  `Vec<LoadWarning>` the sketch did not have (spec §5 rows 54-56).
+- **Deferred, not dropped**: `NoteId` and the `gen` counter. Nothing
+  mutates the arena in the read-only phase, so a generation check has
+  nothing to guard; both arrive with the write phase's structural
+  mutation. The Vec arena + path index landed as sketched, kept
+  path-sorted (the Phase 1 deterministic view; column sorts are
+  Phase 3, where upstream's date-modified-descending default also
+  lands).
+- **Untouched**: the `Expr` / `FilterState` / `SearchCaches` sketches
+  remain the Phase 2-3 starting points.
+
 ## Deliberately dropped from upstream's NoteObject
 
 The upstream note carries ~40 ivars (map §1.1): attributed-body
