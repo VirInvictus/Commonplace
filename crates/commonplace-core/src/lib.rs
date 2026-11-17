@@ -3,6 +3,7 @@
 //! GUI-free and dependency-free by contract; behavior contract in
 //! `spec.md` at the workspace root.
 
+pub mod fold;
 pub mod note;
 pub mod store;
 
