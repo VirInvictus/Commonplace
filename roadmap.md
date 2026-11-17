@@ -172,10 +172,12 @@ parens > NOT > AND > OR), AST, golden tests over both upstream
 vocabularies and the nvUltra manual's examples (`#startrek AND (worf
 OR geordi) NOT picard`).
 
-- [ ] lexer + parser + AST
-- [ ] the two DECISION rows recorded in spec §5 before code lands
-- [ ] golden tests over both upstream vocabularies + manual examples
-- [ ] docs carried: spec §5 rows, patchnotes entry
+- [x] lexer + parser + AST
+- [x] the two DECISION rows recorded in spec §5 before code lands
+      (rows 57-58, plus the grammar resolutions pinned as row 59)
+- [x] golden tests over both upstream vocabularies + manual examples
+- [x] docs carried: spec §5 rows (the patchnotes entry lands with the
+      engine-arc release, per the Phase 1 batching call)
 
 ## Phase 3: Engine: matcher, incremental filter, ordering
 
@@ -199,10 +201,13 @@ typed in Rust (`FilterState` carries the previous query + candidate
 set), property tests (result set == naive re-filter at every step),
 a 10k-note benchmark with a latency gate recorded in the test.
 
-- [ ] `search` module: incremental `FilterState` + stable sort + selection rule
-- [ ] property tests (incremental == naive at every step)
-- [ ] 10k-note benchmark with a recorded latency gate
-- [ ] docs carried: spec rows, patchnotes entry
+- [x] `search` module: incremental `FilterState` + stable sort + selection rule
+- [x] property tests (incremental == naive at every step; 600 seeded
+      random edit walks plus scripted sequences)
+- [x] 10k-note benchmark with a recorded latency gate (50 ms per
+      keystroke on `--release`, measured 12.9 ms cold / 65-90 µs warm)
+- [x] docs carried: spec rows (the patchnotes entry lands with the
+      engine-arc release, per the Phase 1 batching call)
 
 ## Phase 4: Engine: write path
 
