@@ -25,6 +25,8 @@ with `file:line` citations into the research corpus:
 - `research/interaction-contract.md` (complete nvALT keymap + nvUltra shortcuts + wiki-link semantics; "contract §N")
 - `research/rust-crate-survey.md` (Rust ecosystem for the DECISION gates; "crates §N")
 - `research/format-briefs-mmd-simplenote.md` (MMD metadata grammar + Simplenote export schema; "formats §N")
+- `research/objc-rust-crosswalk.md` (the ObjC idiom dictionary: delegates, notifications, GCD, undo, runtime tricks; "crosswalk §N")
+- `research/rust-model-notes.md` (core type sketches + the index-units contract; "models")
 
 Tiers per `spec.md` §5: **[NV]** original semantics, **[ALT]** nvALT,
 **[ULTRA]** nvUltra public docs, **[CP]** Commonplace's own additions
@@ -217,7 +219,12 @@ External-change detection [ALT]: mtime+size reconciliation pass
 (inotify joins at Phase 10; the reconciliation algorithm lands here,
 `synchronizeNotesFromDirectory` semantics; crates §2: atomic saves
 arrive as Create+Rename pairs, so reconcile keys on path + re-stat,
-not on event kind).
+not on event kind). Write coalescing has a documented asymmetry to
+replicate exactly (crosswalk §10, NotationController.m:1086): a user
+edit invalidates the performSelector-queued save but NOT the
+timer-queued one; the Rust design keeps two independent debounce
+handles (edit-cancellable write coalescer + fixed fsync cadence) so
+saves coalesce exactly like nvALT's.
 
 DECISION: Syncthing conflict files (`*.sync-conflict-*`, brief §3)
 are admitted as ordinary notes at scan time [CP], never hidden; a
@@ -230,6 +237,8 @@ under simulated crash (kill mid-write), conflict-file admission.
 - [ ] create / rename (revert-on-failure) / delete-to-trash boundary
 - [ ] link rewriting on rename (the [CP] improvement; upstream is a stub)
 - [ ] atomic save + rescan-reconcile (path + re-stat keying)
+- [ ] write coalescing: the two-handle cancellation matrix (edit cancels
+      the write coalescer, not the fsync cadence; crosswalk §10)
 - [ ] the trash-crate decision confirmed in the ledger before code lands
 - [ ] tests: collision tables, rename revert, crash-mid-write, conflict admission
 - [ ] docs carried: spec rows, patchnotes entry
@@ -470,10 +479,18 @@ programmatic edits [CP; upstream saves on quit/close, delta §1
 per-keystroke writes, house §Q2, which does not scale to note-sized
 bodies; the debounce timer pattern is Viaduct's, with its
 handle-clearing gotcha]. This aligns with Syncthing safety
-(invariant 4). Ledger note: per-note undo *stacks* have no house
-precedent (all house editors are single-buffer); the grouping
-vocabulary (user actions + Quire's irreversible-action Drop guard)
-is proven.
+(invariant 4). Ledger notes from crosswalk §9-12: per-note undo
+stacks have no house precedent (single-buffer apps), but upstream's
+undo behaviors are contracts to replicate: **undoing dirties the
+file** (NoteObject.m:1928-1931) and undo-group nesting during undo
+exists (NotationController.m:887-892). The modifier-hold popovers
+(option/control held 1.2 s pop word count/preview,
+AppController.m:3752-3789) are RECOMMENDED FOR DROP [CP]: GTK has no
+flagsChanged observer, the feature is undiscoverable, and the popups
+duplicate visible controls; recorded in the ledger at phase open.
+The encrypted-notes temp-file guarantee maps upstream's RAM-disk
+machinery to `$XDG_RUNTIME_DIR` (tmpfs) and only matters if Phase 22
+ever greenlights (crosswalk §11).
 
 Deliverables: GtkSourceView pane with markdown lang, autosave,
 undo, scroll memory, word count, external-editor round trip.
@@ -858,6 +875,11 @@ drift it finds is fixed in the same session.
 | Paragraph-move: bind Ctrl-Cmd (ALT) AND Ctrl-Opt (ULTRA alias); headings: nvUltra's ungated Opt-Cmd-]/[ | 14 | decided (contract §4C) |
 | Keyboard translation: mac ⌘→Ctrl, ⌥→Alt, ⌃⌘X→Ctrl+Alt+X; collision pass (preview → Ctrl+Alt+P; paragraph-move convergence; line-shift unbound) | 14 | recommendation (roadmap translation layers), confirm at phase |
 | Text-index units: `char`s in-engine (caps and slices in chars, not bytes or UTF-16 units); bytes only at disk/comrak boundaries | 1 | recommendation (rust-model-notes), confirm at phase |
+| Event bus: the 13-name nvALT notification inventory becomes the typed Event enum (2 dead names dropped) | 11 | decided (crosswalk §4) |
+| Write coalescing: two independent handles; user edits cancel the write coalescer but never the fsync cadence | 4 | decided (crosswalk §10, upstream comment cited) |
+| Undo contracts: undo dirties the file; group nesting during undo; per-note stacks with stored closures | 12 | decided (crosswalk §9, upstream behavior) |
+| Modifier-hold popovers: DROP (GTK has no flagsChanged observer; undiscoverable; duplicates visible controls) | 12 | recommendation (crosswalk §12), confirm at phase |
+| GlobalPrefs fan-out: typed setting-key subscriptions with excludingSender echo suppression | 19 | decided (crosswalk §7, upstream behavior) |
 | Preview baseline: Framework reload-with-anchor-restore; DOM replacement = unproven experiment | 15 | decided (house §Q1 + crates §6 scroll-API constraint) |
 | Preview math: MathJax vs KaTeX | 15 | open (no house evidence) |
 | Cmd-[0-9] namespace: bookmarks [ALT]; saved searches take Shift-Cmd-[0-9] [CP] | 17 | recommendation (contract §4B), confirm at phase |
