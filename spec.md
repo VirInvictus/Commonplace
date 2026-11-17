@@ -139,6 +139,7 @@ number from `roadmap.md`.
 | 51 | Library encryption | NV | 22 | gated; recommendation defer past 1.0 (spec §4) |
 | 52 | Flatpak + desktop + metainfo + scheme handler | CP | 23 | brief §3 baseline; house packaging |
 | 53 | `Title:` metadata overrides the displayed title; first line stays the filename source | CP | 5 | formats §1: nvALT has zero `Title:` awareness, nvUltra undocumented; the override rule is Commonplace's pinned decision |
+| 54 | Encoding read path: UTF-8 always, leading BOM stripped, invalid UTF-8 never lossily replaced | CP | 1 | recorded divergence (roadmap translation layer 4): upstream resolves per-file encodings via the `com.apple.TextEncoding` xattr, BOM, then heuristics, and writes the xattr back (`NoteObject.m:1554,1369-1381`); Linux has no analog, so Commonplace pins UTF-8. The decoder is `NoteBody::from_utf8`; undecodable files surface as per-file warnings at the store level (row 56) |
 
 ## 6. Machine surfaces
 
