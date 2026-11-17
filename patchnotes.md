@@ -2,6 +2,54 @@
 
 Newest first.
 
+## v0.3.0 (2026-11-17)
+
+- The write path and the tag/link layer, Phases 4-5 of the roadmap:
+  the engine now writes notes with nvALT's file rules and carries the
+  tag and link graph, still dependency-free and headless.
+- Notes become writable (Phase 4): create with upstream's filename
+  derivation (colon and the Linux path separator fold to hyphen, a
+  leading dot folds to underscore, byte-accurate 255 cap with the
+  collision reserve, case-insensitive `.N` suffixes), atomic saves
+  (dot-prefixed temp, fsync, `rename(2)` replace; a crash mid-write
+  leaves nothing the scan can admit), rename with the
+  keep-existing-extension rule and two atomic legs with best-effort
+  content rollback, delete through an injected sink (the freedesktop
+  `trash` crate wires in at the app phase), rescan-reconcile keyed on
+  path plus `(mtime, size)`, and the two-handle write coalescer (a
+  2.7 s edit-cancellable debounce beside a 15 s cadence the edit
+  never cancels, upstream's asymmetry preserved).
+- Tags and metadata (Phase 5): MultiMarkdown metadata blocks parse
+  per the pinned v6 grammar (placement, blank-line termination, the
+  scanner's key charset, continuation lines, YAML-compat fences, the
+  `...` closer); a `Title:` key overrides the display title while the
+  raw first line stays the filename source; tags come from the
+  metadata `Tags:` value plus inline `#tags`, folded for matching
+  (so `#cafe` finds `#café`), indexed derived-and-rebuildable.
+- Links (Phase 5): `[[wiki links]]` extract under nvALT's exact
+  scanner rules (guard set, the Unicode newline trap, the
+  ObjC-bracket heuristic); the derived backlink index maps folded
+  link text to notes; renaming a note rewrites the inbound links
+  that match its old title, the recorded [CP] improvement over
+  upstream's empty stub. `{{transclusion}}` is recognized with cycle
+  detection; expansion lands with the preview phases.
+- Search integration: tag-word queries consult the tag store
+  (`#word` prefix-matches folded tag titles beside the literal
+  `#xyz` rule; `tag:` full-names them); the property suite pins the
+  incremental filter to the oracle through the new matching. The
+  strict full-name toggle for `#word` arrives with preferences
+  (Phase 19).
+- Correctness fixes from the review passes, user-visible on messy
+  input: metadata offsets are byte-accurate (a rename could panic on
+  unicode-titled metadata), CRLF notes retitle with their own line
+  endings preserved (they previously never retitled at all), the
+  URL-grammar rules follow the pinned scanner (a bare-URL first line
+  starts no block; a line merely containing a URL is ordinary
+  metadata; URL-valued keys like CSS start pairs instead of being
+  swallowed as continuations), adjacent inline tags all register,
+  and transclusion cycles are found even behind unresolvable
+  siblings.
+
 ## v0.2.0 (2026-11-17)
 
 - The engine arc, Phases 1-3 of the roadmap: `commonplace-core` now
