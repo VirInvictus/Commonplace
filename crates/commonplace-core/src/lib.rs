@@ -4,6 +4,7 @@
 //! `spec.md` at the workspace root.
 
 pub mod fold;
+pub mod links;
 pub mod metadata;
 pub mod note;
 pub mod query;

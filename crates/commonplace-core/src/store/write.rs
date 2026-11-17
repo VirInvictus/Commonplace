@@ -218,12 +218,27 @@ impl Store {
         }
     }
 
-    /// The rename-time link rewrite, called by [`Store::rename_note`]
-    /// after a successful rename: notes whose bodies carry
-    /// `[[links]]` matching the old display title (folded) are
-    /// rewritten to the new title and atomically saved. The extractor
-    /// lands with Phase 5 (row 65); until then the hookup is inert.
-    pub(crate) fn rewrite_inbound_links(&mut self, _old_title: &str, _new_title: &str) {}
+    /// The rename-time link rewrite (row 65's [CP] improvement),
+    /// called by [`Store::rename_note`] after a successful rename:
+    /// notes whose bodies carry `[[links]]` matching the old display
+    /// title (folded) are rewritten to the new title and atomically
+    /// saved. Best effort: a note whose rewrite fails to write keeps
+    /// its old link, which upstream behavior (a never-rewriting stub)
+    /// treats as the norm.
+    pub(crate) fn rewrite_inbound_links(&mut self, old_title: &str, new_title: &str) {
+        let old_folded = fold(old_title);
+        let mut rewrites: Vec<(PathBuf, String)> = Vec::new();
+        for note in &self.notes {
+            if let Some(new_body) =
+                crate::links::rewrite_links_for_rename(note.body.as_str(), &old_folded, new_title)
+            {
+                rewrites.push((note.path.clone(), new_body));
+            }
+        }
+        for (path, new_body) in rewrites {
+            let _ = self.save_note(&path, &new_body);
+        }
+    }
 
     /// Delete a note through the injected removal sink: the engine
     /// never links a trash dependency (row 7), so the caller decides
