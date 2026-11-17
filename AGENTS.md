@@ -89,6 +89,18 @@ Every roadmap phase runs the same loop, in this order:
   authoritative. No cloud sync: files stay syncthing-safe by design.
 - Atomic writes only; the engine never leaves a half-written note.
 
+## Workflow: straight on main
+
+Work lands directly on `main`. No feature branches and no worktrees:
+this is a private solo repo and the history is the review. The
+discipline that replaces branching: one verified piece at a time
+(its tests, `cargo clippy --workspace --all-targets -- -D warnings`,
+and `cargo fmt --all` all green before the piece is committed), a
+push at each phase's end so CI validates the phase whole, and never
+a red or unverified commit. This overrides the global
+worktree-isolation rule for approved agents: they work directly on
+main here, exactly as Brandon directed on 2026-11-17.
+
 ## Documentation surfaces
 
 Five files, one job each. Update them as the coding happens, in the
