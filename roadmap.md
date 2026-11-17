@@ -21,6 +21,10 @@ with `file:line` citations into the research corpus:
 - `research/nvalt-delta.md` (the nvALT feature delta; "delta §N")
 - `research/nvultra-feature-survey.md` (nvUltra's public surface; "ultra §N")
 - `research/linux-ecosystem-brief.md` (Linux prior art + 2026 baseline; "brief §N")
+- `research/gtk-prior-art.md` (house GTK evidence: Framework/Docket/Viaduct/Atrium/Quire; "house §N")
+- `research/interaction-contract.md` (complete nvALT keymap + nvUltra shortcuts + wiki-link semantics; "contract §N")
+- `research/rust-crate-survey.md` (Rust ecosystem for the DECISION gates; "crates §N")
+- `research/format-briefs-mmd-simplenote.md` (MMD metadata grammar + Simplenote export schema; "formats §N")
 
 Tiers per `spec.md` §5: **[NV]** original semantics, **[ALT]** nvALT,
 **[ULTRA]** nvUltra public docs, **[CP]** Commonplace's own additions
@@ -143,16 +147,22 @@ Ports [ALT]: filename derivation `uniqueFilenameForTitle:` (`:` →
 `-`, leading `.` → `_`, 255-byte cap, case-insensitive collision
 numbering `title.N.ext`, keep-existing-extension rule, map §4
 `NotationFileManager.m:412-456`); title→rename flow with
-revert-on-failure and wiki-link rewriting on rename
-(`updateLinksToNote:` map §4); tombstoned trash semantics simplified
-[CP]: delete moves the file to the freedesktop Trash (DECISION: hand
-trash helper in-core vs app-level; recommendation: in-core, stdlib
-only). Atomic writes [ALT]: temp + rename, `renameat2(RENAME_EXCHANGE)`
-for the replace case where upstream used `FSExchangeObjects`
-(map §7 portability note 4). External-change detection [ALT]:
-mtime+size reconciliation pass (inotify joins at Phase 10; the
-reconciliation algorithm lands here, `synchronizeNotesFromDirectory`
-semantics).
+revert-on-failure. **Correction from contract §3B:** upstream's
+wiki-link rewrite hook `updateLinksToNote:` is an EMPTY STUB in both
+trees (NC:833-835), so upstream never rewrites links on rename; old
+links survive only as searches for the old title. Commonplace
+rewriting links on rename is a recorded [CP] improvement (ledger row:
+yes, rewrite). Trash [CP]: the `trash` crate 5.4 (verified
+freedesktop-compliant, light default deps, crates §3) in the app
+crate beats hand-rolling; the engine exposes a delete-with-callback
+boundary so core stays dependency-free. Atomic writes [ALT]: temp +
+rename, `renameat2(RENAME_EXCHANGE)` for the replace case where
+upstream used `FSExchangeObjects` (map §7 portability note 4).
+External-change detection [ALT]: mtime+size reconciliation pass
+(inotify joins at Phase 10; the reconciliation algorithm lands here,
+`synchronizeNotesFromDirectory` semantics; crates §2: atomic saves
+arrive as Create+Rename pairs, so reconcile keys on path + re-stat,
+not on event kind).
 
 DECISION: Syncthing conflict files (`*.sync-conflict-*`, brief §3)
 are admitted as ordinary notes at scan time [CP], never hidden; a
@@ -162,9 +172,10 @@ Deliverables: `store::write`: create, rename, delete, atomic save,
 rescan-reconcile. Tests: collision tables, rename revert, atomicity
 under simulated crash (kill mid-write), conflict-file admission.
 
-- [ ] create / rename (revert-on-failure, link rewrite) / delete-to-trash
-- [ ] atomic save + rescan-reconcile
-- [ ] the trash DECISION answered in the ledger before code lands
+- [ ] create / rename (revert-on-failure) / delete-to-trash boundary
+- [ ] link rewriting on rename (the [CP] improvement; upstream is a stub)
+- [ ] atomic save + rescan-reconcile (path + re-stat keying)
+- [ ] the trash-crate decision confirmed in the ledger before code lands
 - [ ] tests: collision tables, rename revert, crash-mid-write, conflict admission
 - [ ] docs carried: spec rows, patchnotes entry
 
@@ -183,13 +194,28 @@ blocks are primary; inline `#tags` are recognized as tags too [CP
 superset]; a derived tag index (rebuildable) serves the sidebar. No
 Finder-tag parity: documented divergence (map §7 note 5).
 
+DECISION (the `Title:` interaction; formats §1): upstream evidence is
+one-sided: nvALT has zero `Title:` awareness (`Title: Foo` lists as
+"Title: Foo", verified in the clone) and nvUltra documents metadata
+tags but never states how `title:` interacts with the displayed name.
+Commonplace pins its own rule in spec before code: recommendation,
+**`Title:` metadata overrides the displayed title when present**,
+falling back to first-line, with the raw first line always available
+as the filename source [CP; supersedes neither tier]. The exact
+grammar this phase parses is pinned in formats §1 (first-block
+placement, blank-line termination, case-insensitive keys with spaces
+stripped, URL-precedence rule, `Keywords:`/`Base Href:` are folklore
+not standard keys, and the MMD-vs-YAML-frontmatter distinguishing
+rules).
+
 Deliverables: metadata-block parser (MMD block rules: first block,
 blank-line terminated), link extraction + rename rewriting hookup for
 Phase 4, derived backlink index [CP, brief §2 gap]. Tests: golden
 blocks, transclusion cycles rejected, backlink correctness under
 rename.
 
-- [ ] metadata-block parser
+- [ ] metadata-block parser (grammar pinned from formats §1)
+- [ ] the `Title:`-interaction DECISION recorded in spec before code lands
 - [ ] link extraction + rename rewriting hookup
 - [ ] derived backlink index
 - [ ] tests: golden blocks, transclusion cycles, backlinks under rename
@@ -207,15 +233,21 @@ Context from research: nvALT 3.x renders via Apex (vendored cmark-gfm
 nvUltra migration statement (ultra §6). Commonplace does not need MMD
 metadata-through-renderer (Phase 5 parses metadata natively).
 
-DECISION (gate, options in order):
-1. **comrak (recommended)**: pure Rust, GFM + extensions, emits
-   `sourcepos` for scroll-sync (map §5 PreviewSync needs it), active
-   maintenance. Costs one sanctioned dependency in the frontend
-   wiring (not in core: core defines `trait Renderer`, the app/CLI
-   wire it).
-2. pulldown-cmark: lighter, fewer extensions, no transclusion story.
-3. libMultiMarkdown FFI: closest to nvUltra, MMD-specific syntax
-   native; C dependency, deprecated upstream.
+DECISION (gate, options in order; crates §1):
+1. **comrak (recommended)**: hit 1.0.0 on 2026-11-17 (BSD-2, MSRV
+   1.89, published semver policy): full GFM plus footnotes, wikilinks
+   (both pipe orders), math dollars, and metadata blocks;
+   `Render.sourcepos` emits position attributes straight into the
+   HTML (blocks solid; lists/description-lists weak, the known limit
+   for scroll-sync); safe by default (raw HTML scrubbed; `unsafe` +
+   ammonia when the preview needs injection). Costs one sanctioned
+   dependency in the frontend wiring (not in core: core defines
+   `trait Renderer`, the app/CLI wire it).
+2. pulldown-cmark 0.13.6: active but leaner; only source mapping is
+   `(Event, Range)` via `into_offset_iter`.
+3. libMultiMarkdown FFI: no upstream-alive bindings crate exists
+   (crates §1); closest to nvUltra, MMD-specific syntax native; C
+   dependency, upstream deprecated.
 
 Transclusion (`{{...}}`) is expanded before render [CP] regardless of
 choice (upstream renderer does not own it either).
@@ -296,14 +328,22 @@ Ports [NV]/[ALT]: vertical layout (search field above the results
 list, editor right), row = title + body preview + label chips
 (`UnifiedCell` map §1.2); column sort picker (title/labels/modified/
 created, map §1.2 `NoteAttributeColumn`); empty state. GTK shape
-[CP]: `GtkColumnView` or custom list widget: DECISION at phase open
-(map §7 note 6: no in-cell editing; row editing lands Phase 17).
-vir-gtk styling + Kanagawa from day one.
+[CP]: **`GtkListView` + `SingleSelection` + `SignalListItemFactory`**
+(house §Q3: the only list shape any house repo ships at scale; no
+repo uses GtkColumnView; Atrium's title Stack, task_list.rs:338-367,
+is the proven in-row editing shape Phase 17 needs; Viaduct's
+400-char preview cap before Pango, timeline.rs:495-566, is the
+load-bearing row rule for large bodies). vir-gtk styling + Kanagawa
+from day one.
 
 File watching: DECISION hand-rolled inotify vs the `notify` crate
-(recommendation: `notify` in the app crate only; core keeps the
-Phase 4 reconcile pass as the fallback/ truth). Accessibility rides
-standard widgets (brief §3).
+(recommendation: `notify` 8.x in the app crate only, with
+`debouncer-full` merging rename pairs; core keeps the Phase 4
+reconcile pass as the fallback/truth. crates §2: the inotify backend
+pairs MOVED_FROM/MOVED_TO by cookie into RenameMode::Both, v8 keeps a
+single pending From so interleaved renames can mispair, and atomic
+saves arrive as Create+Rename, which is why Phase 4 reconciles on
+path + re-stat). Accessibility rides standard widgets (brief §3).
 
 Deliverables: window that opens a collection, lists notes live
 against external edits, sorts, keyboard-navigates the list.
@@ -311,9 +351,9 @@ Tests: headless where possible; the watch behavior gets an
 integration test with a temp dir.
 
 - [ ] window + two-pane vertical layout + sort picker + empty state
-- [ ] list widget DECISION answered at phase open
+- [ ] list widget: GtkListView + GObject domain items (house §Q3)
 - [ ] vir-gtk styling + Kanagawa from day one
-- [ ] file watching (DECISION answered; reconcile stays the truth)
+- [ ] file watching (notify crate decision confirmed; reconcile stays the truth)
 - [ ] watch integration test (temp dir + external edits)
 - [ ] docs carried: spec rows, patchnotes entry
 
@@ -340,12 +380,21 @@ launch restore of last search + last note + scroll
 Deliverables: the field + list interaction contract, golden-tested
 as a state machine (headless model + thin GTK shell over it, the
 Quire evaluator pattern). Tests: the full AppController behavior
-table as unit tests on the model.
+table as unit tests on the model. The complete verified key/behavior
+table lives in contract §1J (Cmd-L, Return=create-or-edit, arrow
+forwarding with text-kept-selected, Cmd-Up/Down, Tab semantics,
+Ctrl-U, Esc-clear, Cmd-D, snapback) plus house latency patterns
+(house §Q4: Atrium's `GtkSearchEntry` search-delay or Viaduct's
+cancel-and-re-arm 150 ms timer for the expensive pass, Quire's
+tick-callback coalescing for same-frame feedback, Docket's
+completion-re-entry and deletion-diff field behaviors,
+timeline.rs INVALID_LIST_POSITION deselect).
 
 - [ ] headless state-machine model (Quire evaluator pattern)
 - [ ] the full AppController behavior table as unit tests
 - [ ] thin GTK shell wiring over the model
 - [ ] launch restore (last search + last note + scroll)
+- [ ] typing-in-a-focused-list forwards to the field (NTV:976-984)
 - [ ] docs carried: spec rows, patchnotes entry
 
 ## Phase 12: App: editor pane
@@ -359,10 +408,17 @@ click-below-text lands at end (`ClickBelowText.h` map §1.4); external
 editor handoff [ALT→CP]: stage + watch replaces ODBEditor
 (map §7 note 9), `$EDITOR` plus a picker.
 
-DECISION: autosave on by default with a short debounce [CP;
-upstream saves on quit/close, delta §1 "auto-save not found"]. This
-aligns with the Docket autosave precedent and Syncthing safety
-(invariant 4).
+DECISION: autosave on by default, debounced (250-500 ms), with
+Docket's `loading` guard discipline and explicit autosave() on
+programmatic edits [CP; upstream saves on quit/close, delta §1
+"auto-save not found": Docket itself ships synchronous
+per-keystroke writes, house §Q2, which does not scale to note-sized
+bodies; the debounce timer pattern is Viaduct's, with its
+handle-clearing gotcha]. This aligns with Syncthing safety
+(invariant 4). Ledger note: per-note undo *stacks* have no house
+precedent (all house editors are single-buffer); the grouping
+vocabulary (user actions + Quire's irreversible-action Drop guard)
+is proven.
 
 Deliverables: GtkSourceView pane with markdown lang, autosave,
 undo, scroll memory, word count, external-editor round trip.
@@ -389,7 +445,15 @@ suppressed inside fences (`TaskList.h` semantics, delta §6);
 
 Deliverables + tests: a highlight-model crate module (pure
 computation: ranges from buffer text) tested headless against the
-upstream contract table, thin sourceview wiring.
+upstream contract table, thin sourceview wiring. Gate shape from
+house §Q2: no house repo does true per-edit-range incremental
+application; the honest baseline is the GtkSourceView language
+engine (stock `markdown.lang` first; a custom `.lang` is a proven,
+documented path if NV-specific contexts are needed) plus Quire-style
+signature-guarded tag passes for the spans GtkSourceView cannot
+express, with the 300KB cap enforced BEFORE the pass. The stock
+engine's ceiling for nvALT-style task/fence spans is the flagged
+prototype risk (crates §7).
 
 - [ ] highlight model (pure ranges-from-buffer module)
 - [ ] 300KB cap contract implemented + tested
@@ -410,7 +474,12 @@ indent rules incl. 3.0.40's blank-line rule; list-marker cycling
 fence rules, pref-gated (delta §6 `NVAutoPair`); reference-link
 completion `[text][id]` + F6/F7 jumps (delta §6); paragraph move
 Ctrl-Cmd-Up/Down; expand/shrink selection by Markdown structure
-(delta §6).
+(delta §6). Keymap resolutions (contract §4C): paragraph-move binds
+BOTH Ctrl-Cmd-Up/Down [ALT primary] and Ctrl-Opt-Up/Down [ULTRA
+alias]; heading promote/demote adopts nvUltra's always-on
+Opt-Cmd-]/[ over nvALT's pref-gated Cmd-Shift-=/-; quote keys
+Cmd-Shift->/< ship ungated. Default keymap = the complete verified
+table in contract §1.
 
 Deliverables + tests: same pattern: pure buffer-transform functions
 with golden tables, then keybinding wiring. The full nvALT shortcut
@@ -425,19 +494,46 @@ table lands as the default keymap (delta §1 3.0.7 batch).
 
 ## Phase 15: App: preview pane
 
+Platform facts first (crates §6, house §Q1): `webkit6 = "0.6"` (repo
+alive) against webkitgtk-6.0. The 6.0 API has **no `run_javascript`**
+(use `evaluate_javascript`/`call_async_javascript_function`) and **no
+scroll API at all**: scroll save/restore is JS-only, sequenced after
+load-finished, and `load_html` resets scroll (fresh document).
+Framework's proven architecture (house §Q1) is therefore the
+baseline: `load_html` with a custom-scheme base_uri for same-origin
+resources (fw-webview.c:677-686); post-load JS queued until
+LOAD_FINISHED via pending fields; scroll tracked by an injected
+200 ms-debounced user script posting `{anchor, scroll_y, frac}` to a
+script-message handler with a host-side synchronous cache (a JS
+round-trip cannot finish during dispose); reload = debounced full
+load_html + restore_position (anchor-then-scrollTo fallback).
+**In-place DOM replacement between markers (nvALT's marker-comment
+trick) is unproven in house and is the slicing hot-path experiment**,
+not the baseline: record both in the ledger. Security posture for
+untrusted notes: raw-HTML policy (Framework's `MD_FLAG_NOHTML`
+equivalent, or comrak's scrub-by-default with `unsafe` only where
+MathJax needs it) + a nav policy allowing only fragment jumps with
+external links handed to GtkUriLauncher (fw-webview.c:401-462);
+Viaduct's img-scheme + CSP rewrite is the alternative for remote
+images. Carry Framework's env-var gotchas into packaged-run notes
+(WebKitGTK sandbox vs Landlock; `WEBKIT_DISABLE_DMABUF_RENDERER` on
+Wayland, main.c:133-164).
+
 Ports [ALT]: live side-by-side preview with the debounce contract
 (0.05s small / 0.6s large, map §5 PreviewSlice.h); **>300KB slicing**:
 render ±64KB around the caret with 16KB fence lookback so WebKit
 never sees the whole file (map §5); in-place content swap between
-marker comments preserving scroll (map §5 m:650-666); scroll-to-edit
-via renderer sourcepos (Phase 6 comrak sourcepos ↔ `PreviewSync`
-line math, map §5); themes: user CSS in XDG themes dir, import from
-file/URL, `#wrapper` wrap contract (map §5 theming); math
-(MathJax/KaTeX: DECISION which), mermaid, highlight.js with
-light/dark palette picked from background, wikilinks clickable in
-preview staying plain in code/math/diagrams (map §5 preview-js);
-preview templates with `{%title%}`/`{%style%}` slots (map §5);
-save-HTML export (map §5).
+marker comments preserving scroll (map §5 m:650-666; see the
+baseline note above); scroll-to-edit via renderer sourcepos (Phase 6
+comrak sourcepos ↔ `PreviewSync` line math, map §5; blocks only:
+lists/description-list sourcepos is comrak's known weak spot, crates
+§1); themes: user CSS in XDG themes dir, import from file/URL,
+`#wrapper` wrap contract (map §5 theming); math (MathJax/KaTeX:
+DECISION which; no house evidence either way), mermaid,
+highlight.js with light/dark palette picked from background,
+wikilinks clickable in preview staying plain in code/math/diagrams
+(map §5 preview-js); preview templates with
+`{%title%}`/`{%style%}` slots (map §5); save-HTML export (map §5).
 
 Cut with rationale [CP]: Marked handoff, `x-marked://stream/`,
 share-to-Marked (macOS app interop; map §5).
@@ -475,10 +571,20 @@ Ports [ALT]: label/tag sidebar (`LabelsListController` map §1.6),
 tag-token chips with multi-note apply and comma-chaining (delta §1
 3.0.13/14), in-row title/tag editing with column swap
 (map §1.2 `NotesTableView.m:1093-1112`, Phase 10's DECISION pays
-here); in-list rename-vs-jump Enter pref (delta §1 3.0.28).
-Ports [NV]: bookmarks/snapback as note+searchString pairs
-(`BookmarksController` map §1.7). Ports [ULTRA]: saved searches on
-⌘1-⌘9/⌘0 over the Phase 9 shared store.
+here: Atrium's title Stack, Label page / Entry page, is the proven
+shape, house §Q3); in-list rename-vs-jump Enter pref (delta §1
+3.0.28). Ports [NV]: bookmarks/snapback as note+searchString pairs
+(`BookmarksController` map §1.7).
+
+DECISION (the Cmd-[0-9] namespace; contract §1C/§2/§4B): upstream
+clashes hard: nvALT assigns Cmd-0/1-9 to note bookmarks (with
+Shift/Ctrl-Shift escalation, BC:238-270) while nvUltra assigns the
+same keys to saved searches; nvALT's own saved-search controller is
+dead code, so it has no slots at all. Recommendation: **bookmarks
+take Cmd-0/1-9 [ALT]; saved searches take Shift-Cmd-[0-9] over the
+Phase 9 store [CP]**. Keymap sources: the complete verified tables
+in contract §1 and §2; keep Cmd-R = rename (no refresh-preview
+binding: live preview needs none) [CP].
 
 - [ ] tag sidebar + tag-token chips + multi-note apply
 - [ ] in-row title/tag editing (Phase 10's DECISION pays here)
@@ -488,14 +594,28 @@ Ports [NV]: bookmarks/snapback as note+searchString pairs
 
 ## Phase 18: App: URL scheme + deep linking + single instance
 
-Ports [ALT] (delta §3 route table): `commonplace://find/<terms>`
-(with UUID reveal semantics), `/make` (`title`/`txt`/`html`/`tags`/
-`url`), `/markdownify`, `/add-theme`, bare-host-as-search; the
-nvUltra compatibility note (ultra §1: its `find` is deliberately
-nvALT-compatible) means Commonplace also answers `x-nvultra://find`
-shape-for-shape [CP courtesy]. Linux mechanics [CP]: `.desktop`
-x-scheme-handler registration (brief §3), GTK single-instance
-activation with the URL routed to the running window.
+Ports [ALT] (delta §3 route table; contract §3B for link semantics):
+`commonplace://find/<terms>` (with UUID reveal semantics),
+`/make` (`title`/`txt`/`html`/`tags`/`url`), `/markdownify`,
+`/add-theme`, bare-host-as-search; the nvUltra compatibility note
+(ultra §1: its `find` is deliberately nvALT-compatible) means
+Commonplace also answers `x-nvultra://find` shape-for-shape [CP
+courtesy; a second MimeType entry]. Wiki-link grammar to honor
+(contract §3B): bracket-pair scan, no newline inside, control-char
+guards, a modern equivalent of upstream's ObjC-bracket exclusion
+(exclude fenced/code-span lines), case-insensitive prefix matching
+with shortest-title preference, completion from titles with the
+shortest preselected, extension-tolerant matching [ULTRA]. Link
+behaviors: plain click = search, never create (upstream-verified);
+Cmd-click = create via make with `txt=[[X]]`; DECISION: upstream
+performs no dedup on that create, Commonplace should bind the
+missing note or refuse with a message [CP, record at phase open].
+Linux mechanics [CP]: `.desktop` x-scheme-handler registration
+(brief §3), GTK single-instance activation with the URL routed to
+the running window: the entire route is proven end-to-end by
+Viaduct (house §Q5: MimeType → HANDLES_OPEN → connect_open with a
+window-present retry loop → activation presents, never duplicates;
+main.rs:132-181, 304-308).
 
 - [ ] route table (find/make/markdownify/add-theme/bare-host)
 - [ ] `x-nvultra://find` shape compatibility
@@ -558,10 +678,19 @@ Simplenote export archive into a folder (no live sync engine ever;
 spec §4). Cut [CP]: Safari extension (browser clippers are ecosystem
 work; the URL scheme covers automation).
 
-DECISION: HTML → Markdown converter (options: a small sanctioned
-Rust crate in the CLI/app wiring, or a minimal in-core converter
-porting the upstream HTMLToMarkdown semantics; recommendation:
-sanctioned crate, benchmarked against upstream behavior examples).
+DECISION: HTML → Markdown converter (crates §5: the `readability`
+crate is a 3-year dead end; the live picks are **dom_smoothie 0.19**
+for article extraction and **htmd 0.5.6** for HTML→Markdown, both
+active, both app-crate-side; htmd rides html5ever's rcdom which
+self-describes as not production-grade: the flagged risk against the
+alternative of a minimal in-core converter porting the upstream
+HTMLToMarkdown semantics; recommendation: sanctioned crates,
+benchmarked against upstream behavior examples). The Simplenote
+archive grammar and the official importer honor-list (content,
+creationDate, deleted, markdown, modificationDate, pinned, tags:
+everything else dropped) are pinned in formats §2, including the
+`systemTags` vocabulary and the `markdown` flag as the exact
+md-vs-plaintext marker.
 
 - [ ] URL import + markdownify verb
 - [ ] file-drop / batch import
@@ -579,9 +708,11 @@ the shape entirely [CP]. Options: (a) per-collection encrypted
 container (closest to NV, breaks plain-file invariant 1: rejected
 unless files-first is amended), (b) per-note age encryption with
 libsecret-held keys (interop-friendly, breaks grep-ability of the
-tree), (c) defer with an explicit spec note (recommendation: c for
-1.0; revisit post-1.0 with real usage). The gate must be answered
-even if the answer is "defer".
+tree; crates §4: age 0.12.1 + keyring 4.2 with the dbus/zbus
+secret-service stores; gpgme rejected, last release 2022), (c) defer
+with an explicit spec note (recommendation: c for 1.0; revisit
+post-1.0 with real usage). The gate must be answered even if the
+answer is "defer".
 
 - [ ] the gate answered in the ledger (even if the answer is "defer")
 - [ ] if greenlit: implementation + tests
@@ -657,10 +788,18 @@ drift it finds is fixed in the same session.
 | Sync scope: files-first, no cloud; Simplenote importer only | 21 | decided 2026-11-17 with Brandon (spec §4) |
 | Tag matching: nvALT prefix default, strict flag | 2 | decided (roadmap) |
 | Diacritic folding: on | 2 | decided (roadmap) |
-| Trash: in-core freedesktop trash | 4 | recommendation, confirm at phase |
-| Renderer: comrak behind core trait | 6 | recommendation, confirm at phase |
-| File watching: notify crate in app crate | 10 | recommendation, confirm at phase |
-| Autosave: on, debounced | 12 | recommendation, confirm at phase |
-| Preview math: MathJax vs KaTeX | 15 | open |
-| HTML→Markdown converter | 21 | recommendation, confirm at phase |
-| Encryption | 22 | recommendation: defer past 1.0 |
+| Trash: `trash` crate in the app crate, engine keeps a delete boundary | 4 | recommendation (crates §3: verified spec-compliant), confirm at phase |
+| Link rewriting on rename: YES (upstream's hook is an empty stub) | 4 | decided (contract §3B) [CP improvement] |
+| `Title:` metadata overrides displayed title, first line is filename source | 5 | recommendation (formats §1: upstream evidence one-sided), confirm in spec at phase |
+| Renderer: comrak behind core trait (1.0.0 on 2026-11-17) | 6 | recommendation (crates §1), confirm at phase |
+| List widget: GtkListView + SingleSelection (house §Q3; no ColumnView anywhere in house) | 10 | decided (roadmap, house evidence) |
+| File watching: notify 8.x + debouncer-full in app crate, reconcile keys on path + re-stat | 10 | recommendation (crates §2), confirm at phase |
+| Autosave: on, debounced 250-500 ms, Docket guard discipline | 12 | recommendation (house §Q2), confirm at phase |
+| Highlighting: sourceview engine + Quire-style guarded passes, cap enforced before pass | 13 | decided (roadmap, house evidence) |
+| Paragraph-move: bind Ctrl-Cmd (ALT) AND Ctrl-Opt (ULTRA alias); headings: nvUltra's ungated Opt-Cmd-]/[ | 14 | decided (contract §4C) |
+| Preview baseline: Framework reload-with-anchor-restore; DOM replacement = unproven experiment | 15 | decided (house §Q1 + crates §6 scroll-API constraint) |
+| Preview math: MathJax vs KaTeX | 15 | open (no house evidence) |
+| Cmd-[0-9] namespace: bookmarks [ALT]; saved searches take Shift-Cmd-[0-9] [CP] | 17 | recommendation (contract §4B), confirm at phase |
+| Cmd-click create dedup: bind-or-refuse (upstream duplicates) | 18 | recommendation (contract §3B), confirm at phase |
+| HTML→Markdown: dom_smoothie + htmd (app crate side) | 21 | recommendation (crates §5), confirm at phase |
+| Encryption | 22 | recommendation: defer past 1.0 (age + keyring named if reopened) |

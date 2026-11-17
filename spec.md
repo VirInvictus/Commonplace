@@ -110,7 +110,7 @@ number from `roadmap.md`.
 | 22 | Tag sidebar + tag tokens + multi-note apply | ALT | 17 | delta §1 (3.0.13/14); map §1.6 |
 | 23 | MMD metadata blocks as primary tag store | ULTRA | 5 | ultra tagging-and-metadata |
 | 24 | Inline `#tags` in body count as tags | ALT | 5 | delta §1 |
-| 25 | `[[wiki links]]` + rename rewriting | ALT, ULTRA | 5, 14 | map §4 (`updateLinksToNote:`); ultra advanced-features |
+| 25 | `[[wiki links]]` + rename rewriting | ALT, ULTRA, CP | 5, 14 | ultra advanced-features; upstream's `updateLinksToNote:` hook is an empty stub (contract §3B: rename never rewrote links in NV or nvALT), so rewriting on rename is Commonplace's improvement [CP, decided] |
 | 26 | `{{transclusion}}` | ULTRA | 5, 15 | ultra advanced-features; expanded pre-render [CP] |
 | 27 | Derived backlink index | CP | 5 | brief §2 gap |
 | 28 | Markdown editor highlighting with 300KB cap | ALT | 13 | delta §6 (`MarkdownHighlight.h:6`) |
@@ -138,6 +138,7 @@ number from `roadmap.md`.
 | 50 | Preferences panes parity (General/Notes/Editing/Fonts/Debug) | ALT | 19 | delta §4 inventory |
 | 51 | Library encryption | NV | 22 | gated; recommendation defer past 1.0 (spec §4) |
 | 52 | Flatpak + desktop + metainfo + scheme handler | CP | 23 | brief §3 baseline; house packaging |
+| 53 | `Title:` metadata overrides the displayed title; first line stays the filename source | CP | 5 | formats §1: nvALT has zero `Title:` awareness, nvUltra undocumented; the override rule is Commonplace's pinned decision |
 
 ## 6. Machine surfaces
 

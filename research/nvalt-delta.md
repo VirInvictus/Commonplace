@@ -27,7 +27,7 @@ messages, and branch commits.
 | Search-or-create single field, fuzzy title autocomplete, prefix matching | Original NV (shared) | unchanged (`SearchCommand.m` is 19 lines in both) |
 | `#tag` search in the query field (`#unix` = tag-prefix match, mixes with plain words, `#a #b` ANDs) | 3.0.13 / 3.0.14 (CHANGELOG:321-327, 343-349); code `TagSearch.h/.m` (added 2026-10-28); `NotationController.m:1369`, `NoteObject.m:1847` | 3.0.19: "#tag search matches a tag prefix or the same #tag written in the title, body, or labels" (CHANGELOG:263) |
 | Tag tokens: solid chips for tags on all selected notes, dimmed for partial, multi-note apply | 3.0.13/3.0.14 (CHANGELOG:322) | 3.0.27 (theme-styled selected tags in vertical layout, CHANGELOG:176) |
-| Search highlighting of matched words in the note body | pre-3.0 NV base, reworked by nvALT | 3.0.35 (persist while switching notes, clear on editor focus; dark/light legibility 3.0.32; skip #tag words 3.0.13) — `SearchHighlight.h` |
+| Search highlighting of matched words in the note body | pre-3.0 NV base, reworked by nvALT | 3.0.35 (persist while switching notes, clear on editor focus; dark/light legibility 3.0.32; skip #tag words 3.0.13): `SearchHighlight.h` |
 | Search field keeps typed text when a note is selected | 3.0.39 (CHANGELOG:25) | same (commit e250cb4 2026-11-12) |
 | Escape in editor clears search | 3.0.11 (CHANGELOG:370) | same |
 | Find panel (Find Next/Previous/Replace) | nvALT 1.x (`MultiTextFinder.m` added 2011-01-14) | 3.0.40: "Command-E uses the selection for Find" (CHANGELOG:6) |
@@ -47,7 +47,7 @@ messages, and branch commits.
 | Remember per-note scroll position | 3.0.40 era (commit 5cf50a3 "Remember where you left each note", 2026-11-13; `GlobalPrefs.h:184-186`, key `LastNoteTopCharIndexKey` GlobalPrefs.m:1150) | latest master |
 | Enter in notes list: rename vs. jump to editor | pref existed 2.x era | 3.0.28: "stays on by default" (CHANGELOG:161); `ListEnter.h` |
 | RTL text direction | 2.x era (`GlobalPrefs.h:205-206`) | unchanged |
-| "Auto-save" / "TRIM" | **not found**: neither term appears in CHANGELOG.md, fork code, or headers as a feature; saving on quit/close is original NV behavior. Reported as absent rather than guessed. | — |
+| "Auto-save" / "TRIM" | **not found**: neither term appears in CHANGELOG.md, fork code, or headers as a feature; saving on quit/close is original NV behavior. Reported as absent rather than guessed. |: |
 | Aliases (notes-folder alias record) | original NV (shared, `aliasDataForDefaultDirectory` GlobalPrefs.h:194) | unchanged |
 
 ### Tags
@@ -101,7 +101,7 @@ Preferences.xib "Match opening characters...").
 
 nvALT replaced NV's `ExternalEditingSession` with the **ODB Editor
 protocol** (`ODBEditor/` dir added 2011-05-20; "Edit With" submenu via
-`ExternalEditorListController`, default editor pref key `TextEditor` —
+`ExternalEditorListController`, default editor pref key `TextEditor`:
 NotationPrefsViewController.m:587-590). The "Open File in Editor" menu
 path is commented out in AppController.m:698.
 
@@ -208,8 +208,8 @@ NotationFileManager), `NVRootedDirectory{,_Private}`,
 | `NotationDirectoryManager.m` | 840 | 669 | −171 | OpenMeta removal |
 | `TemporaryFileCachePreparer.m` | 440 | 277 | −163 | ODB refactor |
 | `PassphraseRetriever.m` | 215 | 129 | −86 | simplification |
-| `URLGetter.m` | — | — | −70 | simplification |
-| `ExporterManager.m`, `SearchCommand.{h,m}`, `BookmarksController.m`, `Notation.sdef` | — | — | ≈unchanged | base NV features kept |
+| `URLGetter.m` |: |: | −70 | simplification |
+| `ExporterManager.m`, `SearchCommand.{h,m}`, `BookmarksController.m`, `Notation.sdef` |: |: | ≈unchanged | base NV features kept |
 
 ---
 
@@ -229,7 +229,7 @@ launch if no notation yet (AppController.m:584-587). Route table in
 | `nvalt://markdownify` | `?url=` or `?html=`, optional `title=`, `readability=` override | fetch/convert page to a Markdown note, overriding prefs if given; http/https only | AppController_Importing.m:214-215, 396-430 |
 | `nvalt://make` | `title=`, body via `txt=` (plain) or `html=` (converted to attributed), optional `tags=`, or `url=` (import/markdownify the page instead, clearing txt/html) | creates the note; body-without-title goes through pasteboard import; cmd-clicking a wiki link to a nonexistent note synthesizes `make?title=X&txt=[[X]]` | AppController_Importing.m:217-309; LinkingEditor.m:2474 |
 | `nvalt://<anything else>` | host treated as search terms | search for the host string | AppController_Importing.m:310-318 |
-| failure | — | NSBeep | AppController.m:584-585 |
+| failure |: | NSBeep | AppController.m:584-585 |
 
 `x-callback-url`: **none found** (grep over *.m/*.h/*.swift). Also
 used internally: `x-marked://stream/` (3.0.1, AppController.m:750) and
@@ -243,7 +243,7 @@ Settings window: sidebar panes **General, Notes, Editing, Fonts &
 Colors, Debug** (PrefsWindowController.m:957,966). Model: `GlobalPrefs`
 (app-global, selector-keyed observer pattern, `GlobalPrefs.h`) +
 `NotationPrefs` (per-database: encryption, storage format, sync,
-extensions — NotationPrefs.h:22-23). Registered defaults:
+extensions: NotationPrefs.h:22-23). Registered defaults:
 GlobalPrefs.m:138-197.
 
 - **General:** notes folder picker ("Read notes from folder",
@@ -266,7 +266,7 @@ GlobalPrefs.m:138-197.
   (`PastePreservesStyleKey`); search-term highlight + color
   (`HighlightSearchTermsKey`).
 - **Fonts & Colors:** body font (default SF Pro 16; legacy Helvetica
-  12 upgraded once — `fontIsLegacyBodyDefault`), list font (SF Pro 14,
+  12 upgraded once: `fontIsLegacyBodyDefault`), list font (SF Pro 14,
   added 3.0.5/6), user color scheme fg/bg (affects "User Scheme"
   only), search-highlight color, **editor theme** + **preview theme**
   pickers with Import and Open Themes Folder
@@ -274,11 +274,11 @@ GlobalPrefs.m:138-197.
   slider (`KeepsMaxTextWidth`, `NoteBodyMaxWidth` default 660,
   GlobalPrefs.m:165-166).
 - **Notes** (NotationPrefsViewController.h): storage format popup
-  (PlainText/RTF/HTML/WordDoc/WordXML — NotationPrefs.h:27), allowed
+  (PlainText/RTF/HTML/WordDoc/WordXML: NotationPrefs.h:27), allowed
   extensions/types tables + make-default + confirm file deletion,
   encryption enable/change password/key-length stepper/keychain
   storage/secure text entry, Simplenote sync block (account, emailed
-  login code, frequency, merge, enable, encrypted-folder warning —
+  login code, frequency, merge, enable, encrypted-folder warning:
   :44-60), **Use Finder Tagging** (`useFinderTags`), **Convert to
   Markdown** (`convertNotesToMarkdown:`).
 - **Debug** (3.0.37): "Log errors and warnings" (default YES), "Log
@@ -328,7 +328,7 @@ All 14 remote branches are **merged into master** (verified
 All editor logic lives in `LinkingEditor.m` (5916 lines) plus small
 header-only C modules with tests in `tests/`.
 
-- **Syntax highlighting** — `MarkdownHighlight.h`. Scans the whole
+- **Syntax highlighting**: `MarkdownHighlight.h`. Scans the whole
   note per edit (headings, emphasis, bold, code spans/fences/indented
   code, list markers incl. nested, links/ref-links/images). **Cap:
   `NVMarkdownSyntaxHighlightLimit = 300 * 1024` UTF-16 chars ≈ 300KB**
@@ -338,14 +338,14 @@ header-only C modules with tests in `tests/`.
   Below the cap only the edited lines are re-colored (3.0.38;
   `paintMarkdown...`/`highlightCriticMarkupInString:` pipeline around
   LinkingEditor.m:1830-1846).
-- **==highlight== and CriticMarkup** — `CriticMarkup.h` +
+- **==highlight== and CriticMarkup**: `CriticMarkup.h` +
   `NVThemeStyle.criticStyleForKind:fromThemeStyle:` /
   `highlightStyleFromThemeStyle:` (NVTheme.h:39-40). `=`/`~` wrap a
   selection as `==...==`/`~~...~~`, otherwise insert literally
   (NVAutoPair return-code 3). Colors come from the theme; fallback
   yellow/red/green/cyan (3.0.36). Deletions struck, insertions
   underlined, substitutions both.
-- **Tasks** — `TaskList.h` (pure-C parser `NVTaskParseLine`): Opt-Cmd-T
+- **Tasks**: `TaskList.h` (pure-C parser `NVTaskParseLine`): Opt-Cmd-T
   toggles `- [ ]` on the current line (LinkingEditor.m:1867-1869);
   clicking the checkbox space toggles `x`
   (`nv_toggleTaskCheckboxForEvent:` :2263, `NVTaskToggleEdit`);
@@ -356,7 +356,7 @@ header-only C modules with tests in `tests/`.
   indents instead of inserting link brackets
   (`NVTaskCursorBelongsToCheckbox`); everything is suppressed inside
   code fences (`NVTaskIndexIsInsideFence`).
-- **Lists** — Return continues bullets/numbers with correct nesting
+- **Lists**: Return continues bullets/numbers with correct nesting
   (`insertMarkdownStructureNewline` :4983+); **auto-renumbering** of
   numbered lists debounced 0.05s (`scheduleNumberedListRenumber`
   :3594, `renumberNumberedLists` :3605, single undo group "Renumber
@@ -366,19 +366,19 @@ header-only C modules with tests in `tests/`.
   3.0.40). Cmd-Opt-L cycles `-`→`*`→`+`→numbered→none on the line or a
   multiline selection (`nv_cycleListMarkersOnLineRanges:` :3899,
   `performKeyEquivalent:` :1863).
-- **Code fences** — Return inside an open fence continues it with the
+- **Code fences**: Return inside an open fence continues it with the
   same fence char/length; an empty fence line closes it; fence
   detection shared via `NVTaskFenceInfo`. The closer check counts
   earlier fences only within a bounded walk, specifically to kill the
   return-key hang on long notes (comment :4985 "Closing a fence counts
   every earlier fence. On a long note that walk is the return-key
   hang."); notes past 300KB skip fence-closing entirely (3.0.38).
-- **Auto-pairing** — `NVAutoPair.h`: symmetric chars type over the
+- **Auto-pairing**: `NVAutoPair.h`: symmetric chars type over the
   closer; backtick pairs then types over; a backtick right after
   another stays single so triple-backtick opens a fence; `=`/`~`
   selection-affix behavior. Toggle pref `UseAutoPairing` (default NO,
   GlobalPrefs.m:176).
-- **Reference links / footnotes** — `LinkReferenceCompletion.m`:
+- **Reference links / footnotes**: `LinkReferenceCompletion.m`:
   completion of `[text][id]` from existing `[id]:` definitions and of
   unused ids on a new definition line; case-insensitive; fenced code
   ignored; defined ref-links get link color
@@ -387,7 +387,7 @@ header-only C modules with tests in `tests/`.
   `insertOrJumpMagicReference`/`insertOrJumpMagicFootnote`,
   `highestMagicNumberForFootnote:` :5738); jumps scroll the caret into
   view.
-- **Shortcut table** — `performKeyEquivalent:` (:1849) +
+- **Shortcut table**: `performKeyEquivalent:` (:1849) +
   `handleMarkdownCommandShortcut:` (:4914): Cmd-Opt-K insert
   `[sel]()`; Cmd-B/Cmd-I bold/italic; Ctrl-Cmd-Left/Right
   indent/outdent lines (`shiftLeftAction/shiftRightAction` :4926);
@@ -411,13 +411,13 @@ header-only C modules with tests in `tests/`.
   selection redraw grows 1pt to avoid hairline artifacts
   (`SelectionRedraw.h`), caret restored per note (3.0.40, GlobalPrefs
   `LastNoteTopCharIndexKey`).
-- **Search-highlight contract** — `SearchHighlight.h:NVSearchHighlightQuery`:
+- **Search-highlight contract**: `SearchHighlight.h:NVSearchHighlightQuery`:
   highlights persist while arrowing between result notes (even after
   the field shows the title), clear when the body takes focus or the
   search is cleared; legibility picks dark/light text by
   luminance/saturation of the highlight color (:44-50). Tag words
   excluded (`NVStringByRemovingTagWords`).
-- **Word count** — toolbar `WordCountToken` (NSTokenField subclass,
+- **Word count**: toolbar `WordCountToken` (NSTokenField subclass,
   theme-colored); blank past the 300KB cap (3.0.38).
 
 **Parity items from original NV kept intact:** encryption/keychain,

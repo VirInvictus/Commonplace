@@ -48,7 +48,7 @@ reference.
 | `FrozenNotation.h/.m` | shared | 228 | Serializes the legacy "Notes & Settings" single-DB plist archive. |
 | `TemporaryFileCache(.h/.m)` / `TemporaryFileCachePreparer.h/.m` | cache fork-only / preparer shared | /277 | Prepares + caches note files for external editing/preview. |
 | `DeletedNoteObject.h/.m`, `DeletionManager.h/.m` | shared | 289/280 | Tombstones for deleted notes (UUID + sync keys), undo-of-delete support; `DeletionManager.m:202` sorts tombstones. |
-| nv-only storage line | nv-only | — | `nv/NVRootedDirectory.m` (2,184), `nv/StartupRecovery.m` (588), `nv/ImportingUtils.m`, `nv/NVStorage/` (Swift pkg): scrod's 2.x immutable-segment redesign. Not in the fork; read as design reference only. |
+| nv-only storage line | nv-only |: | `nv/NVRootedDirectory.m` (2,184), `nv/StartupRecovery.m` (588), `nv/ImportingUtils.m`, `nv/NVStorage/` (Swift pkg): scrod's 2.x immutable-segment redesign. Not in the fork; read as design reference only. |
 
 ### 1.2 Note-list + search UI
 
@@ -70,8 +70,8 @@ reference.
 
 | Class/File | Origin | Lines | Responsibility |
 |---|---|---|---|
-| `NotationController.m` filter methods | shared | — | section 2: `filterNotesFromString:` m:1339, `filterNotesFromUTF8String:forceUncached:` m:1358-1499, `refilterNotes` m:1351, `filterNotesFromLabelAt(Index)(Set):` m:1321-1337. |
-| `NoteObject.m` matching | shared | — | `noteContainsUTF8String` m:1850-1871 (strstr over lowercase caches), `noteMatchesTagWord` m:1842, `noteTitleHasPrefixOfUTF8String` m:1873, `noteTitleIsAPrefixOfOtherNoteTitle` m:1876, `resetFoundPtrsForNote` m:1836, `prefixParentsOfNote` m:264. |
+| `NotationController.m` filter methods | shared |: | section 2: `filterNotesFromString:` m:1339, `filterNotesFromUTF8String:forceUncached:` m:1358-1499, `refilterNotes` m:1351, `filterNotesFromLabelAt(Index)(Set):` m:1321-1337. |
+| `NoteObject.m` matching | shared |: | `noteContainsUTF8String` m:1850-1871 (strstr over lowercase caches), `noteMatchesTagWord` m:1842, `noteTitleHasPrefixOfUTF8String` m:1873, `noteTitleIsAPrefixOfOtherNoteTitle` m:1876, `resetFoundPtrsForNote` m:1836, `prefixParentsOfNote` m:264. |
 | `TagSearch.h/.m` | fork-only | 139 | `#tag` query word parsing/matching (section 2): `NVSearchWordIsTagPrefix` m:27, `NVQueryContainsTagWord` m:42, `NVQueryNewlyHasTagWord` m:62, `NVNoteMatchesTagWord` m:120, `NVTagTitlesMatchPrefix` m:126, `NVStringByRemovingTagWords` m:66. |
 | `SearchCommand.h/.m` | shared | 19 | AppleScript `search` command: NSScriptCommand → `searchForString:` m:12-17. |
 | `MultiTextFinder.h/.m` + `NSTextFinder.h`/`NSTextFinder_LastFind.m` | fork-only | 211/170 | In-editor find bar (pre-10.7 fallback + NSTextFinder integration). |
@@ -103,8 +103,8 @@ reference.
 | `PreviewSlice.h` | fork-only | 155 | Large-note slicing: `NVPreviewAroundCaretCharacters = 64*1024`, fence lookback 16KB, update delays 0.05s/0.6s. |
 | `PreviewSync.h`, `PreviewTruncation.h/.m` | fork-only | headers/143 | Scroll-to-edit math (`NVSourceLineForIndex`), preview truncation markers. |
 | `NVApexMarkdown.swift` | fork-only | 26 | Apex bridge: `html(from:)` = `apexHTML(mode: .unified)`; source-positions variant. |
-| `ThirdParty/apex/` | fork-only (vendored lib) | — | Full Apex Markdown renderer source (C + Swift, CMake/SPM). |
-| `preview-js/` | fork-only assets | — | `highlight.min.js` + light/dark GitHub palettes, `mathjax/`, `mermaid.min.js`, `wikilinks.js`. |
+| `ThirdParty/apex/` | fork-only (vendored lib) |: | Full Apex Markdown renderer source (C + Swift, CMake/SPM). |
+| `preview-js/` | fork-only assets |: | `highlight.min.js` + light/dark GitHub palettes, `mathjax/`, `mermaid.min.js`, `wikilinks.js`. |
 | `NSString_MultiMarkdown.h/.m` | fork-only | ~130 | `stringWithProcessedMultiMarkdown:` m:113 (→ Apex); legacy `tp2md.rb` Ruby NSTask for TaskPaper m:20-60. |
 | `NSString-Markdown.h/.m` + `Markdown_1.0.1/Markdown.pl` | fork-only | ~60 | Legacy Perl `Markdown.pl` via `/usr/bin/perl` NSTask m:10-30; only still used by saveHTML in "Markdown" mode (PreviewController.m:1047-1048). |
 | `NSString_Textile.h/.m` + `Textile_2.12/` | fork-only | ~60 | Textile preview via Ruby script NSTask (NSString_Textile.m:17). |
@@ -112,7 +112,7 @@ reference.
 | `NVThemeManager.h/.m` | fork-only | 423 | Themes in `App Support/Themes`; editor+preview theme selection; Marked CSS import; `nvalt://add-theme` (header doc lines 3-8); `Paper.theme` sample. |
 | `ExporterManager.h/.m` | shared | 175 | Export sheet: `exportNotes:forWindow:` m:25, per-format via `NoteObject exportNoteAsFormat:`. |
 | `NVRTFConverter.h/.m` | fork-only | 251 | RTF→Markdown "Convert to Markdown" library migration (3.0.1). |
-| `template.html`, `templateclean.html`, `custom.css`, `customclean.css` | fork-only assets | — | Preview templates with `{%support%}/{%title%}/{%content%}/{%style%}` slots. |
+| `template.html`, `templateclean.html`, `custom.css`, `customclean.css` | fork-only assets |: | Preview templates with `{%support%}/{%title%}/{%content%}/{%style%}` slots. |
 
 ### 1.6 Tags / labels
 
@@ -121,7 +121,7 @@ reference.
 | `LabelsListController.h/.m` + `LabelObject.h/.m` | shared | 232/120 | Tag sidebar ("labels"): consumed at NotationController.m:1322, tag-list filtering. |
 | `TagEditingManager.h/.m` | shared, rewritten in fork | 721 | Tag editing: `NVTagToken` chips, multi-note tag panel, comma-chaining on Return (AppController.m:1559-1569). |
 | `LabelEditor.h` | fork-only | header | Tag field editor in list rows. |
-| Tag persistence | — | — | nvALT 3.0.1+: Finder tags via `[fileMan setTags:atFSPath:]` (NSFileManager_NV.m:123; NoteObject.m:1304); legacy OpenMeta xattr read path NSFileManager_NV.m:86-157. |
+| Tag persistence |: |: | nvALT 3.0.1+: Finder tags via `[fileMan setTags:atFSPath:]` (NSFileManager_NV.m:123; NoteObject.m:1304); legacy OpenMeta xattr read path NSFileManager_NV.m:86-157. |
 
 ### 1.7 Bookmarks
 
@@ -168,7 +168,7 @@ reference.
 | `ODBEditor/ODBEditor.h/.m` (+ suite headers) | shared | ~1,000 | ODBEditor protocol AppleEvent suite: `editNote:inEditor:context:` → NoteObject.m:1774; callbacks `odbEditor:didModifyFile:` m:1793 re-read + dirty, `didClosefile:` m:1810. |
 | `ExternalEditorListController.h/.m` | shared | 451 | Editor picker UI/prefs. |
 | `TemporaryFileCachePreparer.h/.m` | shared | 277 | Stages note files for external editors. |
-| nv-only `ExternalEditingSession/` | nv-only | — | scrod's newer external-edit session API (not in the fork). |
+| nv-only `ExternalEditingSession/` | nv-only |: | scrod's newer external-edit session API (not in the fork). |
 
 ### 1.12 Security / encryption family (shared)
 
@@ -590,7 +590,7 @@ reopens.)
     keep the same design (lowercase String caches + memmem), which is
     provably fast at this scale.
 13. **Localization**: `.lproj` bundles (en/de/es/fr/it/pt/zh...) via
-    NSLocalizedString — use gettext or a simple table.
+    NSLocalizedString: use gettext or a simple table.
 14. **Sparkle updates, Safari extension, menu-bar StatusItem,
     FullscreenWindow**: platform features with no 1:1; cut or
     approximate (a tray icon on GNOME is likely out of scope).
