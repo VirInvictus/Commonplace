@@ -64,6 +64,10 @@ ode to the bloggers and their commonplace books.
   the storage phase).
 - A plugin system. nvALT's customization surface (templates, CSS) is
   ported as configuration, not as a plugin API.
+- Library encryption, at 1.0. NV shipped transparent library
+  encryption, but invariant 1 (notes are plain files) rules out an
+  encrypted container as the default; any encryption design is a
+  gated post-1.0 decision (roadmap Phase 22).
 
 ## 5. Parity program
 

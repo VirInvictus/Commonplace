@@ -62,5 +62,5 @@ needs GTK 4 development libraries.
 
 GPL-3.0. See `LICENSE`. The choice is forced by the upstream trees the
 port consults: `scrod/nv` master is GPLv3 (relicensed 2011), and the
-nvALT fork tree it forked from is BSD-3. GPL-3.0 is compatible with
-both, so both can be read freely during the port.
+nvALT tree, which forked from it before the relicensing, is BSD-3.
+GPL-3.0 is the safe umbrella for a port that consults both.

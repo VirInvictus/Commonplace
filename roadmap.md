@@ -38,7 +38,7 @@ way; attribution to Zachary Schneirov rides in README + LICENSE.
       snapshot pages in `research/raw/`, four research notes under
       `research/`.
 
-## Phase 1: Engine — note store, read side
+## Phase 1: Engine: note store, read side
 
 Goal: load a notes folder into memory exactly the way nvALT reads one.
 The engine stays dependency-free and headless.
@@ -65,7 +65,7 @@ Deliverables: `commonplace-core::store` with `load_folder`,
 fixture folders (titles, caps, weird filenames, dotfiles, empty notes,
 BOMs), all headless.
 
-## Phase 2: Engine — query language
+## Phase 2: Engine: query language
 
 Goal: one parser covering the three documented grammars of the line,
 superset-ordered from weakest to strongest.
@@ -84,17 +84,17 @@ prefix matching** with a full-name strictness flag [ULTRA-toggle];
 diacritics **fold** (nvUltra behavior, a documented divergence from
 NV's byte matching).
 
-Deliverables: `commonplace_core::query` — lexer, parser (precedence:
+Deliverables: `commonplace_core::query`: lexer, parser (precedence:
 parens > NOT > AND > OR), AST, golden tests over both upstream
 vocabularies and the nvUltra manual's examples (`#startrek AND (worf
 OR geordi) NOT picard`).
 
-## Phase 3: Engine — matcher, incremental filter, ordering
+## Phase 3: Engine: matcher, incremental filter, ordering
 
 Goal: reproduce the famous as-you-type feel headlessly, and prove it
 at 10k notes (brief §3 performance baseline).
 
-Ports [NV]: no inverted index by design — per-note lowercased caches
+Ports [NV]: no inverted index by design: per-note lowercased caches
 plus prefix-resume incremental filtering (`NoteObject.m` string
 caches, `filterNotesFromUTF8String:` PHASE 1 prefix check and
 `useCachedPositions` resume, map §2); implicit AND per token; quoted
@@ -111,7 +111,7 @@ typed in Rust (`FilterState` carries the previous query + candidate
 set), property tests (result set == naive re-filter at every step),
 a 10k-note benchmark with a latency gate recorded in the test.
 
-## Phase 4: Engine — write path
+## Phase 4: Engine: write path
 
 Goal: creating, renaming, deleting notes with upstream's exact file
 rules and house atomicity.
@@ -135,11 +135,11 @@ DECISION: Syncthing conflict files (`*.sync-conflict-*`, brief §3)
 are admitted as ordinary notes at scan time [CP], never hidden; a
 note whose title collides after admission gets the collision suffix.
 
-Deliverables: `store::write` — create, rename, delete, atomic save,
+Deliverables: `store::write`: create, rename, delete, atomic save,
 rescan-reconcile. Tests: collision tables, rename revert, atomicity
 under simulated crash (kill mid-write), conflict-file admission.
 
-## Phase 5: Engine — tags, metadata blocks, links
+## Phase 5: Engine: tags, metadata blocks, links
 
 Goal: the portable tag store and the link graph, with no xattrs.
 
@@ -160,7 +160,7 @@ Phase 4, derived backlink index [CP, brief §2 gap]. Tests: golden
 blocks, transclusion cycles rejected, backlink correctness under
 rename.
 
-## Phase 6: Engine — render boundary + renderer decision
+## Phase 6: Engine: render boundary + renderer decision
 
 Goal: Markdown → HTML for preview/export behind an in-core trait, so
 the engine stays dependency-free while both frontends share one
@@ -173,13 +173,13 @@ nvUltra migration statement (ultra §6). Commonplace does not need MMD
 metadata-through-renderer (Phase 5 parses metadata natively).
 
 DECISION (gate, options in order):
-1. **comrak (recommended)** — pure Rust, GFM + extensions, emits
+1. **comrak (recommended)**: pure Rust, GFM + extensions, emits
    `sourcepos` for scroll-sync (map §5 PreviewSync needs it), active
    maintenance. Costs one sanctioned dependency in the frontend
    wiring (not in core: core defines `trait Renderer`, the app/CLI
    wire it).
-2. pulldown-cmark — lighter, fewer extensions, no transclusion story.
-3. libMultiMarkdown FFI — closest to nvUltra, MMD-specific syntax
+2. pulldown-cmark: lighter, fewer extensions, no transclusion story.
+3. libMultiMarkdown FFI: closest to nvUltra, MMD-specific syntax
    native; C dependency, deprecated upstream.
 
 Transclusion (`{{...}}`) is expanded before render [CP] regardless of
@@ -191,7 +191,7 @@ sanctioned dependency. Tests: trait contract, transclusion expansion,
 math/mermaid/wikilink detection flags (map §5
 `NVPreviewHTMLPreparingContent`).
 
-## Phase 7: Engine — export + import core
+## Phase 7: Engine: export + import core
 
 Goal: file-in, file-out parity for the formats Commonplace keeps.
 
@@ -204,7 +204,7 @@ Deliverables: `export` verbs in core (dir of notes → dir of exports;
 single note → HTML/text). Tests: round-trip idempotence
 (export → re-import == byte-stable for text), HTML well-formedness.
 
-## Phase 8: CLI — verb surface + machine shapes
+## Phase 8: CLI: verb surface + machine shapes
 
 Goal: the scriptable half, the house exit taxonomy, `--json` shapes.
 
@@ -221,7 +221,7 @@ Deliverables: verbs over the Phase 1-7 engine, `--json` golden
 shapes, README usage section. Tests: exit-code table, json schema
 snapshots.
 
-## Phase 9: CLI — saved searches, scheme half, completions
+## Phase 9: CLI: saved searches, scheme half, completions
 
 Ports [ULTRA]: saved searches with hotkey slots ⌘1-⌘9/⌘0 (ultra §1)
 → stored in config, invocable as `commonplace-cli search --saved N`
@@ -230,7 +230,7 @@ and reused by the app's Phase 17 [CP shared store]. Shell completions
 (`find`/`make`/`markdownify` argument handling), sharing Phase 18's
 routes.
 
-## Phase 10: App — shell, list, watching
+## Phase 10: App: shell, list, watching
 
 Goal: the two-pane NV layout, styled, watching the folder.
 
@@ -238,7 +238,7 @@ Ports [NV]/[ALT]: vertical layout (search field above the results
 list, editor right), row = title + body preview + label chips
 (`UnifiedCell` map §1.2); column sort picker (title/labels/modified/
 created, map §1.2 `NoteAttributeColumn`); empty state. GTK shape
-[CP]: `GtkColumnView` or custom list widget — DECISION at phase open
+[CP]: `GtkColumnView` or custom list widget: DECISION at phase open
 (map §7 note 6: no in-cell editing; row editing lands Phase 17).
 vir-gtk styling + Kanagawa from day one.
 
@@ -252,7 +252,7 @@ against external edits, sorts, keyboard-navigates the list.
 Tests: headless where possible; the watch behavior gets an
 integration test with a temp dir.
 
-## Phase 11: App — the search-field state machine
+## Phase 11: App: the search-field state machine
 
 Goal: the defining UX, ported 1:1. This is the phase the project
 exists for.
@@ -277,7 +277,7 @@ as a state machine (headless model + thin GTK shell over it, the
 Quire evaluator pattern). Tests: the full AppController behavior
 table as unit tests on the model.
 
-## Phase 12: App — editor pane
+## Phase 12: App: editor pane
 
 Goal: the plain-text editing core under the Markdown layer.
 
@@ -289,15 +289,15 @@ editor handoff [ALT→CP]: stage + watch replaces ODBEditor
 (map §7 note 9), `$EDITOR` plus a picker.
 
 DECISION: autosave on by default with a short debounce [CP;
-upstream saves on quit/close, delta §1 "auto-save not found"] —
-aligned with the Docket autosave precedent and Syncthing safety
-(invariant 3/4).
+upstream saves on quit/close, delta §1 "auto-save not found"]. This
+aligns with the Docket autosave precedent and Syncthing safety
+(invariant 4).
 
 Deliverables: GtkSourceView pane with markdown lang, autosave,
 undo, scroll memory, word count, external-editor round trip.
 Tests: editor-model tests headless; autosave debounce timing test.
 
-## Phase 13: App — Markdown editing I: highlighting + tasks
+## Phase 13: App: Markdown editing I: highlighting + tasks
 
 Ports [ALT] (delta §6, the UX contract): markdown syntax
 highlighting via GtkSourceView's engine with the **300KB cap
@@ -314,7 +314,7 @@ Deliverables + tests: a highlight-model crate module (pure
 computation: ranges from buffer text) tested headless against the
 upstream contract table, thin sourceview wiring.
 
-## Phase 14: App — Markdown editing II: lists, fences, pairs, reflinks
+## Phase 14: App: Markdown editing II: lists, fences, pairs, reflinks
 
 Ports [ALT]: Return continuation for bullets/numbers/quotes/fences
 with nesting (`insertMarkdownStructureNewline`, delta §6); numbered
@@ -328,11 +328,11 @@ completion `[text][id]` + F6/F7 jumps (delta §6); paragraph move
 Ctrl-Cmd-Up/Down; expand/shrink selection by Markdown structure
 (delta §6).
 
-Deliverables + tests: same pattern — pure buffer-transform functions
+Deliverables + tests: same pattern: pure buffer-transform functions
 with golden tables, then keybinding wiring. The full nvALT shortcut
 table lands as the default keymap (delta §1 3.0.7 batch).
 
-## Phase 15: App — preview pane
+## Phase 15: App: preview pane
 
 Ports [ALT]: live side-by-side preview with the debounce contract
 (0.05s small / 0.6s large, map §5 PreviewSlice.h); **>300KB slicing**:
@@ -342,7 +342,7 @@ marker comments preserving scroll (map §5 m:650-666); scroll-to-edit
 via renderer sourcepos (Phase 6 comrak sourcepos ↔ `PreviewSync`
 line math, map §5); themes: user CSS in XDG themes dir, import from
 file/URL, `#wrapper` wrap contract (map §5 theming); math
-(MathJax/KaTeX — DECISION which), mermaid, highlight.js with
+(MathJax/KaTeX: DECISION which), mermaid, highlight.js with
 light/dark palette picked from background, wikilinks clickable in
 preview staying plain in code/math/diagrams (map §5 preview-js);
 preview templates with `{%title%}`/`{%style%}` slots (map §5);
@@ -351,7 +351,7 @@ save-HTML export (map §5).
 Cut with rationale [CP]: Marked handoff, `x-marked://stream/`,
 share-to-Marked (macOS app interop; map §5).
 
-## Phase 16: App — collections (notebooks)
+## Phase 16: App: collections (notebooks)
 
 Ports [ULTRA]: unlimited simultaneous notebooks/collections, folder
 switcher (⌃⌘N analog), per-collection settings (extensions, default
@@ -363,7 +363,7 @@ Deliverables: multi-collection config, switcher UI, per-collection
 store instances. Tests: config round-trip, cross-collection
 isolation.
 
-## Phase 17: App — tags UI, bookmarks, row editing
+## Phase 17: App: tags UI, bookmarks, row editing
 
 Ports [ALT]: label/tag sidebar (`LabelsListController` map §1.6),
 tag-token chips with multi-note apply and comma-chaining (delta §1
@@ -374,7 +374,7 @@ Ports [NV]: bookmarks/snapback as note+searchString pairs
 (`BookmarksController` map §1.7). Ports [ULTRA]: saved searches on
 ⌘1-⌘9/⌘0 over the Phase 9 shared store.
 
-## Phase 18: App — URL scheme + deep linking + single instance
+## Phase 18: App: URL scheme + deep linking + single instance
 
 Ports [ALT] (delta §3 route table): `commonplace://find/<terms>`
 (with UUID reveal semantics), `/make` (`title`/`txt`/`html`/`tags`/
@@ -385,7 +385,7 @@ shape-for-shape [CP courtesy]. Linux mechanics [CP]: `.desktop`
 x-scheme-handler registration (brief §3), GTK single-instance
 activation with the URL routed to the running window.
 
-## Phase 19: App — preferences + theming
+## Phase 19: App: preferences + theming
 
 Ports [ALT] (delta §4 pane inventory): General (folder, external
 editor, list font/size, activation hotkey), Editing (marker choices
@@ -401,7 +401,7 @@ Deliverables: prefs model (typed config structs + GTK UI), theme
 file format = nvALT-compatible `.theme` JSON where feasible [ALT
 interoperability, map §1.5 NVTheme] and plain CSS preview themes.
 
-## Phase 20: Hardening — sync-safety, perf, large notes
+## Phase 20: Hardening: sync-safety, perf, large notes
 
 Goal: make invariant 4 (Syncthing-safe) and invariant 7 (10k notes,
 instant) provable rather than intended.
@@ -472,6 +472,7 @@ Post-1.0 the flag/verb surface is additive (spec §7).
 
 | Decision | Phase | Status |
 |---|---|---|
+| Sync scope: files-first, no cloud; Simplenote importer only | 21 | decided 2026-11-17 with Brandon (spec §4) |
 | Tag matching: nvALT prefix default, strict flag | 2 | decided (roadmap) |
 | Diacritic folding: on | 2 | decided (roadmap) |
 | Trash: in-core freedesktop trash | 4 | recommendation, confirm at phase |
