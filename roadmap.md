@@ -947,9 +947,9 @@ cut, verbatim tag messages).
 | Sync scope: files-first, no cloud; Simplenote importer only | 21 | decided 2026-11-17 with Brandon (spec §4) |
 | Tag matching: nvALT prefix default, strict flag | 2 | decided (roadmap) |
 | Diacritic folding: on | 2 | decided (roadmap) |
-| Trash: `trash` crate in the app crate, engine keeps a delete boundary | 4 | recommendation (crates §3: verified spec-compliant), confirm at phase |
+| Trash: `trash` crate in the app crate, engine keeps a delete boundary | 4 | decided (2026-11-17, confirmed per crates §3: crate 5.4 verified freedesktop-compliant; lands with the app crate at Phase 10+, the engine's delete takes the injected sink now) |
 | Link rewriting on rename: YES (upstream's hook is an empty stub) | 4 | decided (contract §3B) [CP improvement] |
-| `Title:` metadata overrides displayed title, first line is filename source | 5 | recommendation (formats §1: upstream evidence one-sided), confirm in spec at phase |
+| `Title:` metadata overrides displayed title, first line is filename source | 5 | decided (2026-11-17, confirmed in spec row 53; the fallback is the row-3 rule, which for a metadata-titled note yields nvALT's literal `Title: Foo`, pinned as the compatibility fixture per formats §1.7) |
 | Renderer: comrak behind core trait (1.0.0 on 2026-11-17) | 6 | recommendation (crates §1), confirm at phase |
 | List widget: GtkListView + SingleSelection (house §Q3; no ColumnView anywhere in house) | 10 | decided (roadmap, house evidence) |
 | File watching: notify 8.x + debouncer-full in app crate, reconcile keys on path + re-stat | 10 | recommendation (crates §2), confirm at phase |
