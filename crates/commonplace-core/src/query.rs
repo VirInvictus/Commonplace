@@ -347,6 +347,33 @@ pub fn parse(raw: &str) -> Result<Option<Expr>, QueryError> {
     .parse_query()
 }
 
+/// How many `#xyz` tag words the query carries. Upstream's
+/// `NVTagWordCount` (`TagSearch.m:44-55`): a count increase between
+/// the previous and current query forces a full re-filter from all
+/// notes, because tag words match against data the token resume does
+/// not cover. `#unix:admin` counts once (the `#unix` word).
+pub fn tag_word_count(raw: &str) -> usize {
+    lex(raw)
+        .iter()
+        .filter(|tok| matches!(tok, Tok::TagWord(_)))
+        .count()
+}
+
+/// Whether the query's token stream is free of operators and groups:
+/// only then do its words, phrases, and tag words mean the same thing
+/// to the NV strsep tokenizer the incremental resume scans with as to
+/// the parser (`And[Term("o"), Term("ut")]` parsed from `"O& üt"` is
+/// a plain AST, but the token scan would hunt the raw needle `o&`).
+/// Operator and group queries must take the naive re-filter path.
+pub fn resume_eligible(raw: &str) -> bool {
+    lex(raw).iter().all(|tok| {
+        !matches!(
+            tok,
+            Tok::And | Tok::Or | Tok::Not | Tok::LParen | Tok::RParen
+        )
+    })
+}
+
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
