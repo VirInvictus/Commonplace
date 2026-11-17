@@ -5,6 +5,7 @@
 
 pub mod fold;
 pub mod note;
+pub mod query;
 pub mod store;
 
 /// Crate version, mirrored from the workspace `VERSION`.
