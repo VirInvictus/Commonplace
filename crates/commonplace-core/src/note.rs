@@ -27,19 +27,25 @@ pub const TITLE_CAP: usize = 60;
 /// A single note, backed by one plain-text file on disk.
 ///
 /// The path is the note's identity (invariant 1: notes are files); the
-/// title is derived display text, never authoritative. `mtime` is a
-/// reconciliation key for later phases.
+/// title is derived display text, never authoritative. `mtime` and
+/// `size` are reconciliation keys.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Note {
     /// The file backing this note, as given to the loader (folder
     /// joined with the file name).
     pub path: PathBuf,
-    /// Derived display title; the file's own name is not consulted.
+    /// Derived fallback title: the content's first line under the
+    /// row-3 rule, the raw file text the filename source is.
     pub title: NoteTitle,
-    /// The folded title key (`crate::fold`): what matching, the alpha
-    /// sorts, and the autocomplete-prefix rule all compare. Upstream
-    /// kept the same idea as the lowercased `cTitle` C-string cache on
-    /// the note itself (map §2).
+    /// A `Title:` metadata override (spec row 53): when present it
+    /// wins the display title; the first line stays the filename
+    /// source.
+    pub title_override: Option<String>,
+    /// The folded DISPLAY-title key (`crate::fold` over
+    /// [`Self::display_title`]): what matching, the alpha sorts, and
+    /// the autocomplete-prefix rule all compare. Upstream kept the
+    /// same idea as the lowercased `cTitle` C-string cache on the
+    /// note itself (map §2).
     pub folded_title: Box<str>,
     /// Full file text, decoded, BOM stripped, line endings as read.
     pub body: NoteBody,
@@ -51,6 +57,17 @@ pub struct Note {
     /// File size in bytes at load: the reconcile key beside `mtime`
     /// (spec row 63; upstream's `logicalSize`, map section 4).
     pub size: u64,
+}
+
+impl Note {
+    /// The title the UI shows: the `Title:` metadata override when
+    /// present (row 53), else the derived first-line title.
+    pub fn display_title(&self) -> &str {
+        match &self.title_override {
+            Some(override_title) => override_title,
+            None => self.title.as_str(),
+        }
+    }
 }
 
 /// A derived note title: the first line of a note's body under the

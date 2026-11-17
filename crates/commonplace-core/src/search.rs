@@ -419,6 +419,7 @@ mod tests {
         let title = NoteTitle::from_body(title);
         Note {
             path: PathBuf::from(path),
+            title_override: None,
             folded_title: crate::fold::fold(title.as_str()).into_boxed_str(),
             title,
             body: NoteBody::empty(),
@@ -561,6 +562,7 @@ mod tests {
         let title = NoteTitle::from_body(title);
         Note {
             path: PathBuf::from(path),
+            title_override: None,
             folded_title: crate::fold::fold(title.as_str()).into_boxed_str(),
             title,
             body: NoteBody::from_utf8(body.as_bytes()).unwrap(),

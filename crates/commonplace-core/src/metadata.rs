@@ -63,7 +63,7 @@ impl Metadata {
     }
 }
 
-fn normalize_key(key: &str) -> String {
+pub(crate) fn normalize_key(key: &str) -> String {
     key.to_lowercase().replace(' ', "")
 }
 
@@ -87,7 +87,7 @@ fn is_blank(line: &str) -> bool {
 /// dot - the docs understate dot/tab/NBSP; formats §1.2), and ends at
 /// a colon. Returns the (key, value) split with surrounding
 /// whitespace removed from both.
-fn meta_line(line: &str) -> Option<(&str, &str)> {
+pub(crate) fn meta_line(line: &str) -> Option<(&str, &str)> {
     let mut chars = line.char_indices();
     let (_, first) = chars.next()?;
     if !first.is_ascii_alphanumeric() {

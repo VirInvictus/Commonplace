@@ -9,6 +9,7 @@ pub mod note;
 pub mod query;
 pub mod search;
 pub mod store;
+pub mod tags;
 
 /// Crate version, mirrored from the workspace `VERSION`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

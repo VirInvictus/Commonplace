@@ -177,21 +177,28 @@ impl Store {
             })?;
         }
 
-        // Rewrite the content's first line; everything after it,
-        // including its line-ending style, stays byte for byte.
-        let body = self.notes[index].body.as_str();
-        let rest = match body.split_once('\n') {
-            Some((_, rest)) => rest.to_owned(),
-            None => String::new(),
-        };
-        let new_content = format!("{new_title}\n{rest}");
+        // Rewrite the title where the content says it is: the
+        // metadata Title: key when a block carries one (row 53),
+        // otherwise the content's first line. Everything else stays
+        // byte for byte.
+        let new_content = rewrite_title_in_content(
+            self.notes[index].body.as_str(),
+            &old_display_title,
+            new_title,
+        );
         atomic_write(&new_path, new_content.as_bytes())?;
 
         let note = &mut self.notes[index];
         note.path = new_path;
         note.body = NoteBody::of(&new_content);
         note.title = NoteTitle::from_body(note.body.as_str());
-        note.folded_title = fold(note.title.as_str()).into_boxed_str();
+        let parsed = crate::metadata::parse_metadata(&new_content);
+        note.title_override = parsed
+            .metadata
+            .title()
+            .map(|t| t.trim().to_owned())
+            .filter(|t| !t.is_empty());
+        note.folded_title = fold(note.display_title()).into_boxed_str();
         if let Ok(meta) = fs::metadata(&note.path) {
             if let Ok(mtime) = meta.modified() {
                 note.mtime = mtime;
@@ -305,13 +312,97 @@ impl Store {
         let note = &mut self.notes[index];
         note.body = NoteBody::of(new_body);
         note.title = NoteTitle::from_body(note.body.as_str());
-        note.folded_title = fold(note.title.as_str()).into_boxed_str();
+        let parsed = crate::metadata::parse_metadata(new_body);
+        note.title_override = parsed
+            .metadata
+            .title()
+            .map(|t| t.trim().to_owned())
+            .filter(|t| !t.is_empty());
+        note.folded_title = fold(note.display_title()).into_boxed_str();
         note.created = meta
             .created()
             .unwrap_or(meta.modified().unwrap_or(SystemTime::UNIX_EPOCH));
         note.mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
         Ok(note.clone())
     }
+}
+
+/// Rewrite a note's title where the content says it is, for renames
+/// under row 53: a metadata block carrying a `Title:` key gets that
+/// line's value replaced in place (the block, its fences, and every
+/// other key survive); a metadata block WITHOUT a `Title:` key gains
+/// one at the block's top; a body without a block gets its first line
+/// replaced. Everything else stays byte for byte.
+fn rewrite_title_in_content(content: &str, old_title: &str, new_title: &str) -> String {
+    let parsed = crate::metadata::parse_metadata(content);
+    if parsed.end_offset == 0 {
+        // No metadata block: replace the first line (or the whole
+        // content when there is only one line).
+        return match content.split_once('\n') {
+            Some((_, rest)) => format!("{new_title}\n{rest}"),
+            None => new_title.to_owned(),
+        };
+    }
+    let block = &content[..parsed.end_offset];
+    let rest = &content[parsed.end_offset..];
+    let has_title = parsed.metadata.title().is_some();
+    let mut rebuilt = String::with_capacity(content.len() + new_title.len());
+    if !has_title {
+        // Insert the Title line at the block's top: right after an
+        // opening fence, else at the very start.
+        let first_line_len = block.lines().next().map(|l| l.len()).unwrap_or(0);
+        if is_open_fence(&block[..first_line_len]) {
+            rebuilt.push_str(&block[..first_line_len + 1]);
+            rebuilt.push_str(&format!("Title: {new_title}\n"));
+            rebuilt.push_str(&block[first_line_len + 1..]);
+        } else {
+            rebuilt.push_str(&format!("Title: {new_title}\n"));
+            rebuilt.push_str(block);
+        }
+        return rebuilt + rest;
+    }
+    // Replace the existing Title line's value in place.
+    for line in block.lines_inclusive() {
+        if is_open_fence(line) || line.trim().is_empty() {
+            rebuilt.push_str(line);
+            continue;
+        }
+        if let Some((key, _)) = crate::metadata::meta_line(line)
+            && crate::metadata::normalize_key(key) == "title"
+        {
+            rebuilt.push_str(&format!("{key}: {new_title}\n"));
+            continue;
+        }
+        rebuilt.push_str(line);
+    }
+    let _ = old_title;
+    rebuilt + rest
+}
+
+/// The line, including its terminating newline if it had one.
+trait LinesInclusive {
+    fn lines_inclusive(&self) -> Vec<&str>;
+}
+impl LinesInclusive for str {
+    fn lines_inclusive(&self) -> Vec<&str> {
+        let mut out = Vec::new();
+        let mut start = 0;
+        for (i, b) in self.bytes().enumerate() {
+            if b == b'\n' {
+                out.push(&self[start..=i]);
+                start = i + 1;
+            }
+        }
+        if start < self.len() {
+            out.push(&self[start..]);
+        }
+        out
+    }
+}
+
+fn is_open_fence(line: &str) -> bool {
+    let trimmed = line.trim_end_matches('\n');
+    trimmed.len() >= 3 && trimmed.chars().all(|c| c == '-')
 }
 
 /// Atomic write per row 5: dot-prefixed temp in the same directory,
@@ -350,6 +441,7 @@ fn build_note(path: PathBuf, body: &NoteBody) -> Note {
     let now = SystemTime::UNIX_EPOCH;
     Note {
         path,
+        title_override: None,
         folded_title: fold(title.as_str()).into_boxed_str(),
         title,
         body: body.clone(),

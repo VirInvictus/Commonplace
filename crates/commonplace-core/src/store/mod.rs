@@ -320,11 +320,20 @@ fn load_entry(name: &OsStr, path: &Path, warnings: &mut Vec<LoadWarning>) -> Opt
     }
     // The [CP] load-title rule (spec row 55): display title from the
     // content's first line; the file's own name is only its path.
+    // Row 53: a Title: metadata override wins the display title.
     let title = NoteTitle::from_body(body.as_str());
-    let folded_title = crate::fold::fold(title.as_str()).into_boxed_str();
+    let parsed = crate::metadata::parse_metadata(body.as_str());
+    let title_override = parsed
+        .metadata
+        .title()
+        .map(|t| t.trim().to_owned())
+        .filter(|t| !t.is_empty());
+    let display = title_override.as_deref().unwrap_or(title.as_str());
+    let folded_title = crate::fold::fold(display).into_boxed_str();
     Some(Note {
         path: path.to_owned(),
         title,
+        title_override,
         folded_title,
         body,
         created,
