@@ -36,8 +36,16 @@ pub struct Note {
     pub path: PathBuf,
     /// Derived display title; the file's own name is not consulted.
     pub title: NoteTitle,
+    /// The folded title key (`crate::fold`): what matching, the alpha
+    /// sorts, and the autocomplete-prefix rule all compare. Upstream
+    /// kept the same idea as the lowercased `cTitle` C-string cache on
+    /// the note itself (map §2).
+    pub folded_title: Box<str>,
     /// Full file text, decoded, BOM stripped, line endings as read.
     pub body: NoteBody,
+    /// File creation time where the filesystem provides a birth time,
+    /// else the modification time (spec row 60).
+    pub created: SystemTime,
     /// File modification time at load.
     pub mtime: SystemTime,
 }

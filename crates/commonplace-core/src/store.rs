@@ -232,6 +232,9 @@ fn load_entry(name: &OsStr, path: &Path, warnings: &mut Vec<LoadWarning>) -> Opt
     // or reconciles on mtime, and the Phase 4 reconcile pass re-stats
     // by path before trusting it, so a placeholder is safe there.
     let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    // Birth time where the filesystem records one (statx btime);
+    // otherwise the modified time stands in (spec row 60).
+    let created = meta.created().unwrap_or(mtime);
 
     // Decode. Stat-able but unreadable or undecodable files are
     // admitted with an empty body and a warning (upstream parallel:
@@ -261,10 +264,13 @@ fn load_entry(name: &OsStr, path: &Path, warnings: &mut Vec<LoadWarning>) -> Opt
     // The [CP] load-title rule (spec row 55): display title from the
     // content's first line; the file's own name is only its path.
     let title = NoteTitle::from_body(body.as_str());
+    let folded_title = crate::fold::fold(title.as_str()).into_boxed_str();
     Some(Note {
         path: path.to_owned(),
         title,
+        folded_title,
         body,
+        created,
         mtime,
     })
 }
