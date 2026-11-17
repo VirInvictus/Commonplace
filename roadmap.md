@@ -905,6 +905,41 @@ drift it finds is fixed in the same session.
 
 ---
 
+## Release batching (2026-11-17, decided with Brandon)
+
+Phases land in version bumps by arc, the engine-arc precedent
+(v0.2.0 = Phases 1-3) continued to 1.0. The batches are targets, not
+promises: a phase may cross a batch boundary when dependency forces
+it, and a release cuts when its arc is green, never by calendar.
+Patch level (0.x.y) is reserved for within-arc fixes; the flag and
+verb surface turns additive at 1.0 (spec §7). The milestone passes
+ride the release that completes their arc: M1 ships with v0.5.0, M2
+with v0.9.0, M3 is v1.0.0 itself.
+
+| Version | Phases | The story |
+|---|---|---|
+| v0.1.0 | 0 | the skeleton (catch-up tag, cut with v0.2.0) |
+| v0.2.0 | 1-3 | the engine arc: read side, query language, the search machinery (shipped 2026-11-17) |
+| v0.3.0 | 4-5 | notes become writable: upstream filename rules, atomic saves, external-change reconcile, then tags/metadata blocks and the link graph |
+| v0.4.0 | 6-7 | render boundary + export core: comrak behind the core trait (the first sanctioned dependency, in a frontend crate), export verbs, round-trip proofs; the engine is feature-complete after this |
+| v0.5.0 | 8-9 | the CLI arc: verbs, `--json` shapes, exit codes, config, saved searches, completions; the first runnable artifact; **M1 fires here** |
+| v0.6.0 | 10-11 | the app rises: GTK4 window, live list over a watched folder, and the search-field state machine, the phase the project exists for |
+| v0.7.0 | 12-14 | the editor arc: pane with autosave/undo/scroll memory, markdown highlighting + task lists, lists/fences/pairs + the Linux keymap |
+| v0.8.0 | 15-16 | live preview (WebKitGTK, slicing, themes) + collections |
+| v0.9.0 | 17-19 | tags UI/bookmarks/row editing, the URL scheme, preferences + theming; **M2 fires here** |
+| v0.10.0 | 20-21 | hardening (sync-safety, perf gates into CI) + importers |
+| v0.11.0 | 22-23 | the encryption gate answered (recommendation: defer past 1.0) + packaging (desktop, metainfo, Flatpak, `release.yml`) |
+| v1.0.0 | 24 | the parity audit and the contract-is-the-promise release; **M3** |
+
+Two flow facts already settled by the engine arc: tags and GitHub
+Releases exist since v0.2.0 (the v0.1.0 catch-up tag anchored at the
+pre-engine commit), so Phase 23's checklist item is about the install
+tree, not the release mechanics; and every release follows the house
+flow (docs carried per phase, doc-drift + release-auditor before the
+cut, verbatim tag messages).
+
+---
+
 ## Decision ledger (running)
 
 | Decision | Phase | Status |
