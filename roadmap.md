@@ -53,7 +53,12 @@ boundary; each names where the crossing is handled.
 3. **Text model**: NSAttributedString everywhere upstream → plain
    String + editor-layer styling here (map §7 note 2). The file on
    disk is plain text in both; the in-memory rich model is an
-   upstream artifact we deliberately drop.
+   upstream artifact we deliberately drop. Also inside this layer:
+   **index units**: upstream counts everything in UTF-16 code units
+   (the 300KB cap, preview slices, editor offsets); Commonplace
+   counts `char`s in-engine and converts to bytes only at the disk
+   and comrak boundaries (sketch and rule in
+   `research/rust-model-notes.md`, Phase 1 confirms).
 4. **Filesystem services**: FSEvents → inotify via the notify crate
    (Phase 10; crates §2); FSExchangeObjects →
    renameat2(RENAME_EXCHANGE) (Phase 4); the com.apple.TextEncoding
@@ -852,6 +857,7 @@ drift it finds is fixed in the same session.
 | Highlighting: sourceview engine + Quire-style guarded passes, cap enforced before pass | 13 | decided (roadmap, house evidence) |
 | Paragraph-move: bind Ctrl-Cmd (ALT) AND Ctrl-Opt (ULTRA alias); headings: nvUltra's ungated Opt-Cmd-]/[ | 14 | decided (contract §4C) |
 | Keyboard translation: mac ⌘→Ctrl, ⌥→Alt, ⌃⌘X→Ctrl+Alt+X; collision pass (preview → Ctrl+Alt+P; paragraph-move convergence; line-shift unbound) | 14 | recommendation (roadmap translation layers), confirm at phase |
+| Text-index units: `char`s in-engine (caps and slices in chars, not bytes or UTF-16 units); bytes only at disk/comrak boundaries | 1 | recommendation (rust-model-notes), confirm at phase |
 | Preview baseline: Framework reload-with-anchor-restore; DOM replacement = unproven experiment | 15 | decided (house §Q1 + crates §6 scroll-API constraint) |
 | Preview math: MathJax vs KaTeX | 15 | open (no house evidence) |
 | Cmd-[0-9] namespace: bookmarks [ALT]; saved searches take Shift-Cmd-[0-9] [CP] | 17 | recommendation (contract §4B), confirm at phase |

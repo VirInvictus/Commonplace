@@ -46,6 +46,29 @@ redistribute its materials, never copy its assets. Not affiliated with
 any of the upstream projects; "Notational Velocity", "nvALT", and
 "nvUltra" belong to their authors.
 
+## Executing a phase
+
+Every roadmap phase runs the same loop, in this order:
+
+1. Re-read the phase and every research section it cites; the
+   citations are the specification of the work.
+2. Re-diff the moving target: `git -C .repos/nvalt fetch` and compare
+   against the tip the phase assumes (6a4c000 at Phase 0); any
+   upstream movement gets noted in the phase's checklist box before
+   code starts.
+3. Write the golden tests FIRST, from the cited contract tables and
+   grammar rules, not from the implementation.
+4. Implement to green: `cargo test`, then
+   `cargo clippy --workspace --all-targets -- -D warnings`, then
+   `cargo fmt --all`.
+5. Docs carried in the same commits: spec rows, patchnotes when the
+   phase ships a version, README if user-visible, this file if a
+   decision landed.
+6. Tick the phase's checkboxes in the shipping commit and update the
+   decision ledger rows the phase answered.
+7. Land it released per the release flow below; there is no
+   Unreleased holding pen.
+
 ## Commands
 
 - Build: `cargo build`
