@@ -354,7 +354,154 @@ fn build_note(path: PathBuf, body: &NoteBody) -> Note {
         title,
         body: body.clone(),
         created: meta.as_ref().and_then(|m| m.created().ok()).unwrap_or(now),
-        mtime: meta.and_then(|m| m.modified().ok()).unwrap_or(now),
+        mtime: meta.as_ref().and_then(|m| m.modified().ok()).unwrap_or(now),
+        size: meta.as_ref().map(|m| m.len()).unwrap_or(0),
+    }
+}
+
+/// What one reconciliation pass changed (row 63). Paths are the
+/// collection-folder paths as loaded.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ReconcileReport {
+    pub added: Vec<PathBuf>,
+    pub removed: Vec<PathBuf>,
+    /// Paths whose `(mtime, size)` changed on disk: the note was
+    /// re-read and replaced.
+    pub updated: Vec<PathBuf>,
+    /// Load warnings from the freshly scanned entries.
+    pub warnings: Vec<crate::store::LoadWarning>,
+}
+
+impl Store {
+    /// Reconcile the store against the folder (row 63): one fresh
+    /// admission-controlled scan, diffed by path. New paths join,
+    /// vanished paths leave, and a path whose `(mtime, size)` moved is
+    /// re-read from disk - upstream's change triple
+    /// (`NotationDirectoryManager.m:358-360`) minus the attribute-mod
+    /// leg, which has no Linux analog. `rename(2)`-based external
+    /// saves arrive here as remove+add; `statx` btime survives, so
+    /// `created` stays stable across such renames. The inotify layer
+    /// (Phase 10) calls this as its fallback truth.
+    pub fn reconcile(&mut self, folder: &Path) -> Result<ReconcileReport, super::StoreError> {
+        let outcome = crate::store::load_folder(folder)?;
+        let mut report = ReconcileReport {
+            warnings: outcome.warnings,
+            ..ReconcileReport::default()
+        };
+
+        // Diff by path: what the fresh scan sees vs what we hold.
+        let mut kept: Vec<Note> = Vec::with_capacity(outcome.store.notes.len());
+        let mut fresh_paths: Vec<PathBuf> = Vec::with_capacity(outcome.store.len());
+        for fresh in outcome.store.notes() {
+            fresh_paths.push(fresh.path.clone());
+            match self.index_of(&fresh.path) {
+                None => {
+                    report.added.push(fresh.path.clone());
+                    kept.push(fresh.clone());
+                }
+                Some(i) => {
+                    let current = &self.notes[i];
+                    if current.mtime != fresh.mtime || current.size != fresh.size {
+                        report.updated.push(fresh.path.clone());
+                        kept.push(fresh.clone());
+                    } else {
+                        // Nothing moved on disk; keep ours (equal by
+                        // the key, and ours avoids re-decoding).
+                        kept.push(current.clone());
+                    }
+                }
+            }
+        }
+        for current in self.notes() {
+            if !fresh_paths.contains(&current.path) {
+                report.removed.push(current.path.clone());
+            }
+        }
+
+        // The fresh store is the truth; adopt its arena and folder.
+        self.notes = outcome.store.notes;
+        self.by_path = outcome.store.by_path;
+        self.folder = outcome.store.folder;
+        Ok(report)
+    }
+}
+
+/// The two-handle write coalescer (row 62), the port of upstream's
+/// asymmetry (`NotationController.m:1082-1100`): an edit
+/// cancel-and-rearms the 2.7 s write debounce but NEVER the 15 s
+/// cadence timer ("next user change always invalidates queued write
+/// from performSelector, but not queued write from timer", the
+/// source comment at m:1086), so typing coalesces yet every change
+/// reaches disk within 15 s of the first unsaved one. Pure state over
+/// injected `Instant`s: headless to test, the app drives it with
+/// `Instant::now()`.
+#[derive(Debug, Default, Clone)]
+pub struct WriteCoalescer {
+    edit_deadline: Option<std::time::Instant>,
+    cadence_deadline: Option<std::time::Instant>,
+}
+
+/// Which handle a [`WriteCoalescer::tick`] fired. Either means "flush
+/// the pending writes now"; both handles clear with the fire.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CoalesceFire {
+    /// The edit debounce ran out: the user stopped typing for 2.7 s.
+    EditDebounce,
+    /// The cadence ran out: 15 s elapsed since the first unsaved
+    /// edit, regardless of ongoing typing.
+    Cadence,
+}
+
+impl WriteCoalescer {
+    /// Upstream: `performSelector ... afterDelay:2.7`
+    /// (NotationController.m:1100).
+    pub const EDIT_DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(2700);
+    /// Upstream: the `changeWritingTimer` at 15.0 s
+    /// (NotationController.m:1082-1084).
+    pub const CADENCE: std::time::Duration = std::time::Duration::from_secs(15);
+
+    /// A user edit: rearm the debounce (cancelling any queued
+    /// debounce write), and start the cadence if it is not already
+    /// running (an edit never postpones a running cadence).
+    pub fn note_edited(&mut self, now: std::time::Instant) {
+        self.edit_deadline = Some(now + Self::EDIT_DEBOUNCE);
+        if self.cadence_deadline.is_none() {
+            self.cadence_deadline = Some(now + Self::CADENCE);
+        }
+    }
+
+    /// Advance the clock: `Some(fire)` when a handle is due (flush
+    /// now; both handles clear), `None` while both wait.
+    pub fn tick(&mut self, now: std::time::Instant) -> Option<CoalesceFire> {
+        let edit_due = self.edit_deadline.map(|d| d <= now);
+        let cadence_due = self.cadence_deadline.map(|d| d <= now);
+        let fire = match (edit_due, cadence_due) {
+            (Some(true), Some(true)) => {
+                let cadence_first = self.cadence_deadline.unwrap() < self.edit_deadline.unwrap();
+                if cadence_first {
+                    CoalesceFire::Cadence
+                } else {
+                    CoalesceFire::EditDebounce
+                }
+            }
+            (Some(true), _) => CoalesceFire::EditDebounce,
+            (_, Some(true)) => CoalesceFire::Cadence,
+            _ => return None,
+        };
+        self.clear();
+        Some(fire)
+    }
+
+    /// A completed flush (the caller wrote everything through): both
+    /// handles clear, matching upstream's post-write timer
+    /// invalidation.
+    pub fn flushed(&mut self) {
+        self.clear();
+    }
+
+    fn clear(&mut self) {
+        self.edit_deadline = None;
+        self.cadence_deadline = None;
     }
 }
 
@@ -704,6 +851,142 @@ mod tests {
         assert_eq!(store.len(), 1);
         assert!(store.find_by_path(&keep.path).is_some());
         cleanup(&dir);
+    }
+
+    #[test]
+    fn reconcile_reports_added_removed_and_updated() {
+        let dir = scratch("reconcile");
+        let mut store = crate::store::load_folder(&dir).unwrap().store;
+        fs::write(dir.join("a.md"), "alpha\noriginal").unwrap();
+        fs::write(dir.join("b.md"), "bravo\ndoomed").unwrap();
+        store.reconcile(&dir).unwrap();
+        assert_eq!(store.len(), 2);
+
+        // External edits: b.md vanishes, a.md grows, c.md appears.
+        // Sleep long enough that statx mtime cannot tie with the
+        // loaded state.
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        fs::write(dir.join("a.md"), "alpha\noriginal\nnow longer").unwrap();
+        fs::remove_file(dir.join("b.md")).unwrap();
+        fs::write(dir.join("c.md"), "charlie\narrived").unwrap();
+        let report = store.reconcile(&dir).unwrap();
+        let names = |v: &[PathBuf]| {
+            let mut v: Vec<String> = v
+                .iter()
+                .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+                .collect();
+            v.sort();
+            v
+        };
+        assert_eq!(names(&report.added), ["c.md"]);
+        assert_eq!(names(&report.removed), ["b.md"]);
+        assert_eq!(names(&report.updated), ["a.md"]);
+        // The store is the folder's truth afterwards.
+        assert_eq!(store.len(), 2);
+        assert!(store.find_by_path(&dir.join("c.md")).is_some());
+        assert!(store.find_by_path(&dir.join("b.md")).is_none());
+        assert_eq!(
+            store.find_by_path(&dir.join("a.md")).unwrap().body.as_str(),
+            "alpha\noriginal\nnow longer"
+        );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn reconcile_keeps_untouched_notes_and_reports_warnings() {
+        let dir = scratch("reconcile-warn");
+        let mut store = crate::store::load_folder(&dir).unwrap().store;
+        fs::write(dir.join("ok.md"), "fine\nstays").unwrap();
+        store.reconcile(&dir).unwrap();
+        // An undecodable file arrives; the untouched note reports
+        // nothing, the bad one warns.
+        fs::write(dir.join("bad.md"), b"caf\xE9 latin-1 bytes").unwrap();
+        let report = store.reconcile(&dir).unwrap();
+        assert_eq!(report.updated, Vec::<PathBuf>::new());
+        assert_eq!(report.added, vec![dir.join("bad.md")]);
+        assert_eq!(
+            report.warnings,
+            vec![crate::store::LoadWarning::InvalidUtf8 {
+                path: dir.join("bad.md"),
+            }]
+        );
+        assert_eq!(
+            store
+                .find_by_path(&dir.join("ok.md"))
+                .unwrap()
+                .body
+                .as_str(),
+            "fine\nstays"
+        );
+        cleanup(&dir);
+    }
+
+    // The two-handle coalescing matrix (row 62, upstream
+    // NotationController.m:1082-1100). All instants are offsets from
+    // ONE captured base: no real clock reads inside the assertions.
+
+    use std::time::{Duration, Instant};
+
+    fn coalesce_tests() -> (Instant, impl Fn(u64) -> Instant) {
+        let base = Instant::now();
+        (base, move |secs: u64| base + Duration::from_secs(secs))
+    }
+
+    #[test]
+    fn edits_rearm_the_debounce_and_never_the_cadence() {
+        let (_t0, at) = coalesce_tests();
+        let mut c = WriteCoalescer::default();
+        c.note_edited(at(0));
+        // Another edit 1 s later pushes the debounce out but cannot
+        // postpone the cadence that started at t0.
+        c.note_edited(at(1));
+        // 2.7 s after the LAST edit is t0+3.7: not yet at t0+3.
+        assert_eq!(c.tick(at(3)), None);
+        // And the debounce (not the cadence at t0+15) is what fires.
+        assert_eq!(c.tick(at(4)), Some(CoalesceFire::EditDebounce));
+    }
+
+    #[test]
+    fn the_cadence_fires_despite_continuous_typing() {
+        let (_t0, at) = coalesce_tests();
+        let mut c = WriteCoalescer::default();
+        // One edit every second for 14 s: the debounce keeps sliding
+        // (last deadline t0+16.7), the cadence cannot move.
+        for s in 0..14 {
+            c.note_edited(at(s));
+            assert_eq!(c.tick(at(s)), None);
+        }
+        // t0+15 is the cadence deadline itself: due, inclusive.
+        assert_eq!(c.tick(at(15)), Some(CoalesceFire::Cadence));
+        // The fire cleared both handles, so nothing more.
+        assert_eq!(c.tick(at(16)), None);
+    }
+
+    #[test]
+    fn a_fire_clears_both_handles() {
+        let (_t0, at) = coalesce_tests();
+        let mut c = WriteCoalescer::default();
+        c.note_edited(at(0));
+        assert_eq!(
+            c.tick(at(3) + Duration::from_millis(1)),
+            Some(CoalesceFire::EditDebounce)
+        );
+        // Both gone: nothing fires afterwards without a new edit.
+        assert_eq!(c.tick(at(60)), None);
+        // A fresh edit re-arms BOTH (the cadence had cleared). Here
+        // both handles come due together at t0+75; the tie fires the
+        // earlier deadline (the debounce) - the flush is identical.
+        c.note_edited(at(60));
+        assert_eq!(c.tick(at(75)), Some(CoalesceFire::EditDebounce));
+    }
+
+    #[test]
+    fn flushed_clears_like_a_fire() {
+        let (_t0, at) = coalesce_tests();
+        let mut c = WriteCoalescer::default();
+        c.note_edited(at(0));
+        c.flushed();
+        assert_eq!(c.tick(at(60)), None);
     }
 
     #[test]

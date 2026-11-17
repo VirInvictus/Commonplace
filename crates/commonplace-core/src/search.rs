@@ -424,6 +424,7 @@ mod tests {
             body: NoteBody::empty(),
             created: SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(created),
             mtime: SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(mtime),
+            size: 0,
         }
     }
 
@@ -565,6 +566,7 @@ mod tests {
             body: NoteBody::from_utf8(body.as_bytes()).unwrap(),
             created: SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(100),
             mtime: SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(mtime),
+            size: 0,
         }
     }
 

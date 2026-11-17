@@ -20,7 +20,10 @@
 
 mod write;
 
-pub use write::{DEFAULT_EXTENSION, FILENAME_CAP_BYTES, TEMP_PREFIX, WriteError, derive_filename};
+pub use write::{
+    CoalesceFire, DEFAULT_EXTENSION, FILENAME_CAP_BYTES, ReconcileReport, TEMP_PREFIX,
+    WriteCoalescer, WriteError, derive_filename,
+};
 
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
@@ -288,6 +291,7 @@ fn load_entry(name: &OsStr, path: &Path, warnings: &mut Vec<LoadWarning>) -> Opt
     // Birth time where the filesystem records one (statx btime);
     // otherwise the modified time stands in (spec row 60).
     let created = meta.created().unwrap_or(mtime);
+    let size = meta.len();
 
     // Decode. Stat-able but unreadable or undecodable files are
     // admitted with an empty body and a warning (upstream parallel:
@@ -325,6 +329,7 @@ fn load_entry(name: &OsStr, path: &Path, warnings: &mut Vec<LoadWarning>) -> Opt
         body,
         created,
         mtime,
+        size,
     })
 }
 

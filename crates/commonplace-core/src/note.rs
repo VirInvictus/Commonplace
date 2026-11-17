@@ -48,6 +48,9 @@ pub struct Note {
     pub created: SystemTime,
     /// File modification time at load.
     pub mtime: SystemTime,
+    /// File size in bytes at load: the reconcile key beside `mtime`
+    /// (spec row 63; upstream's `logicalSize`, map section 4).
+    pub size: u64,
 }
 
 /// A derived note title: the first line of a note's body under the
