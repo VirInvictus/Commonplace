@@ -10,10 +10,11 @@ NV by Zachary Schneirov, Brett Terpstra's nvALT fork, and the closed-source
 nvUltra successor. One search field drives find-and-create over a folder of
 plain-text notes. Rust, three-crate workspace, GPL-3.0.
 
-Status: the engine arc (roadmap Phases 1-3) is complete and tested;
-the write path, GUI, and CLI are ahead (Phases 4+). The contract lives
-in `spec.md`; the phase plan in `roadmap.md`. Read both before any
-code change.
+Status: the engine is complete through the write path and the
+tag/link layer (roadmap Phases 1-5, tested and benchmarked); the
+render/export arc and the GUI and CLI are ahead (Phases 6+). The
+contract lives in `spec.md`; the phase plan in `roadmap.md`. Read
+both before any code change.
 
 ## Layout
 
@@ -75,9 +76,9 @@ Every roadmap phase runs the same loop, in this order:
 
 - Build: `cargo build`
 - Test: `cargo test` (all suites live in the core crate: store
-  fixture folders, query goldens over the three upstream
-  vocabularies, the search oracle property suite, and two opt-in
-  benchmarks)
+  fixture folders, write-path and tag/link goldens, query goldens
+  over the three upstream vocabularies, the search oracle property
+  suite, and two opt-in benchmarks)
 - Lint: `cargo clippy --workspace --all-targets -- -D warnings`
 - Format: `cargo fmt --all`
 - CI: `.github/workflows/ci.yml`, shape from Docket's hardened

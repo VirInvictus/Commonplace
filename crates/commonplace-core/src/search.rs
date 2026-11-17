@@ -238,7 +238,11 @@ impl FilterState {
                 let mut kept = Vec::with_capacity(old.len());
                 for cand in old {
                     let body = self.folded_body(cand.index, notes);
-                    if query::matches(expr, &notes[cand.index].folded_title, body) {
+                    let folded_tags: Vec<String> = crate::tags::note_tags(&notes[cand.index])
+                        .iter()
+                        .map(|t| fold(t))
+                        .collect();
+                    if query::matches(expr, &notes[cand.index].folded_title, body, &folded_tags) {
                         kept.push(cand);
                     }
                 }

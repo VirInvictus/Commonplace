@@ -490,34 +490,57 @@ fn needle_matches(needle: &str, folded_title: &str, folded_body: &str) -> bool {
     folded_title.contains(needle) || folded_body.contains(needle)
 }
 
-/// Match a parsed expression against already-folded fields. Pure and
-/// naive: the oracle the incremental filter in `crate::search` is
-/// property-tested against.
-pub fn matches(expr: &Expr, folded_title: &str, folded_body: &str) -> bool {
+/// Match a parsed expression against already-folded fields plus the
+/// note's folded tag titles (row 64's store feeding row 57's tag
+/// words). Pure and naive: the oracle the incremental filter in
+/// `crate::search` is property-tested against.
+pub fn matches(expr: &Expr, folded_title: &str, folded_body: &str, folded_tags: &[String]) -> bool {
     match expr {
         Expr::Term(needle) | Expr::Phrase(needle) => {
             needle_matches(needle, folded_title, folded_body)
         }
-        Expr::TagWord { name, .. } => {
+        Expr::TagWord { name, prefix } => {
             // The 3.0.19 literal rule (TagSearch.m:120-124): the
-            // hashtag written in the note matches. The tag-title side
-            // (prefix or full, per row 57) lands with Phase 5.
+            // hashtag written in the note matches. Row 57 adds the
+            // tag-title side now that the store exists: `#word` is a
+            // folded PREFIX match over tag titles
+            // (`NVTagTitlesMatchPrefix`, TagSearch.m:126-139); the
+            // full-name `tag:` operator requires the whole name. The
+            // strict full-name toggle arrives with preferences
+            // (Phase 19).
             let literal = format!("#{name}");
-            needle_matches(&literal, folded_title, folded_body)
+            let literal_hit = needle_matches(&literal, folded_title, folded_body);
+            let folded_name = fold(name);
+            let title_hit = if *prefix {
+                folded_tags.iter().any(|tag| tag.starts_with(&folded_name))
+            } else {
+                folded_tags.contains(&folded_name)
+            };
+            literal_hit || title_hit
         }
         Expr::And(items) => items
             .iter()
-            .all(|item| matches(item, folded_title, folded_body)),
+            .all(|item| matches(item, folded_title, folded_body, folded_tags)),
         Expr::Or(items) => items
             .iter()
-            .any(|item| matches(item, folded_title, folded_body)),
-        Expr::Not(inner) => !matches(inner, folded_title, folded_body),
+            .any(|item| matches(item, folded_title, folded_body, folded_tags)),
+        Expr::Not(inner) => !matches(inner, folded_title, folded_body, folded_tags),
     }
 }
 
-/// Convenience over a `Note`: folds the title and body, then matches.
+/// Convenience over a `Note`: folds the title, body, and tag titles,
+/// then matches.
 pub fn matches_note(expr: &Expr, note: &Note) -> bool {
-    matches(expr, &fold(note.title.as_str()), &fold(note.body.as_str()))
+    let folded_tags: Vec<String> = crate::tags::note_tags(note)
+        .iter()
+        .map(|t| fold(t))
+        .collect();
+    matches(
+        expr,
+        &fold(note.title.as_str()),
+        &fold(note.body.as_str()),
+        &folded_tags,
+    )
 }
 
 /// The naive reference filter: arena indexes of every note matching
@@ -803,7 +826,12 @@ mod tests {
     // The naive matcher, against hand-built folded haystacks.
 
     fn m(expr: &Expr, title: &str, body: &str) -> bool {
-        matches(expr, &fold(title), &fold(body))
+        matches(expr, &fold(title), &fold(body), &[])
+    }
+
+    fn m_tagged(expr: &Expr, title: &str, body: &str, tags: &[&str]) -> bool {
+        let folded: Vec<String> = tags.iter().map(|t| fold(t)).collect();
+        matches(expr, &fold(title), &fold(body), &folded)
     }
 
     #[test]
@@ -845,6 +873,20 @@ mod tests {
         let e = parse_unwrap("warp engine");
         assert!(m(&e, "warp drive", "the engine hums"));
         assert!(!m(&e, "warp drive", "no second word"));
+    }
+
+    #[test]
+    fn tag_words_consult_the_tag_store() {
+        // Row 57 completed: metadata-only tags (no #hash in the text)
+        // match #words by folded prefix and tag: by full name.
+        let e = parse_unwrap("#startrek");
+        assert!(m_tagged(&e, "log entry", "plain text", &["startrek"]));
+        assert!(m_tagged(&e, "log entry", "plain text", &["startrek-tng"]));
+        assert!(!m_tagged(&e, "log entry", "plain text", &["wars"]));
+        let full = parse_unwrap("tag:startrek");
+        assert!(m_tagged(&full, "log", "plain", &["startrek"]));
+        // Full-name operator does not prefix-match.
+        assert!(!m_tagged(&full, "log", "plain", &["startrek-tng"]));
     }
 
     #[test]

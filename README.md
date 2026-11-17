@@ -14,12 +14,13 @@ forward on the Mac. Commonplace carries it to Linux.
 
 ## Status
 
-Engine complete, interface ahead. The behavior contract lives in
-`spec.md`; the phase-by-phase port plan (which upstream code lands
-when) lives in `roadmap.md`. Research notes that feed those phases
-live in `research/`. The engine crate loads, searches, sorts, and
-filters a notes folder headlessly (Phases 1-3); the GUI and CLI
-surfaces are the next arcs, so nothing user-facing ships yet.
+Engine arc underway, interface ahead. The behavior contract lives
+in `spec.md`; the phase-by-phase port plan (which upstream code
+lands when) lives in `roadmap.md`. Research notes that feed those
+phases live in `research/`. The engine crate loads, searches, sorts,
+filters, writes, tags, and links a notes folder headlessly (Phases
+1-5); the render/export arc, then the GUI and CLI, come next, so
+nothing user-facing ships yet.
 
 ## What it will do
 
