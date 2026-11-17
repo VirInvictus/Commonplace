@@ -143,9 +143,10 @@ sanitization), which become inherent methods on `NoteTitle`/`NoteBody`.
 
 - [x] `store::load_folder` + `Note` + sorted stable view
 - [x] golden fixture-folder tests pass headless
-- [x] docs carried: spec divergence rows (§5 rows 54-56; the patchnotes
-      entry lands with this phase's release, since nothing ships
-      untagged and release timing is decided after review)
+- [x] docs carried: spec divergence rows (§5 rows 54-56); the
+      patchnotes entry lands with the first tagged release, batched at
+      the end of the engine arc after Phase 3 (Brandon's call,
+      2026-11-17); nothing ships untagged
 
 ## Phase 2: Engine: query language
 
