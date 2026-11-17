@@ -133,7 +133,13 @@ directory scan (`NotationDirectoryManager`, map §1.1):
 Deliverables: `commonplace-core::store` with `load_folder`,
 `Note` (title, body, path, mtime), sorted stable view. Tests: golden
 fixture folders (titles, caps, weird filenames, dotfiles, empty notes,
-BOMs), all headless.
+BOMs), all headless. Architecture notes (crosswalk §1-3): upstream's
+informal delegate protocols become typed callbacks with
+`Option<callback>` fields (the `respondsToSelector:` idiom), and the
+store's change events feed the Phase 11 event bus; foreign-class
+categories become free functions in per-class modules, except the two
+that are intrinsic model behavior (title extraction, body
+sanitization), which become inherent methods on `NoteTitle`/`NoteBody`.
 
 - [ ] `store::load_folder` + `Note` + sorted stable view
 - [ ] golden fixture-folder tests pass headless
@@ -357,7 +363,10 @@ Surface (additive from 1.0, spec §6): `commonplace-cli search`,
 clap; recommendation stays hand-rolled until verb count hurts.
 Config: `~/.config/commonplace/config.toml` (XDG, brief §3), default
 notes dir `~/Documents/Notes` [CP; upstream default was an
-app-support dir].
+app-support dir]. Parsing is a hand-written TOML subset in core, no
+serde: the engine stays dependency-free (crosswalk §11; the ~300-line
+subset writer-reader is the sanctioned replacement for upstream's
+NSKeyedArchiver/NSUserDefaults plumbing).
 
 Deliverables: verbs over the Phase 1-7 engine, `--json` golden
 shapes, README usage section. Tests: exit-code table, json schema
@@ -365,7 +374,7 @@ snapshots.
 
 - [ ] verb surface over the Phase 1-7 engine
 - [ ] `--json` envelopes + exit-code table tests
-- [ ] config file + default notes dir
+- [ ] config file + default notes dir (hand-written TOML subset, no serde)
 - [ ] README usage section (user-facing docs, not deferred)
 - [ ] docs carried: spec §6 exits, patchnotes entry
 
@@ -458,7 +467,9 @@ timeline.rs INVALID_LIST_POSITION deselect).
 - [ ] the full AppController behavior table as unit tests
 - [ ] thin GTK shell wiring over the model
 - [ ] launch restore (last search + last note + scroll)
-- [ ] typing-in-a-focused-list forwards to the field (NTV:976-984)
+- [ ] typing-in-a-focused-list forwards to the field (NTV:976-984;
+      crosswalk §2: keyDown forwarding, synthesized via the capture
+      controller, since GTK has no event-forwarding primitive)
 - [ ] docs carried: spec rows, patchnotes entry
 
 ## Phase 12: App: editor pane
@@ -513,7 +524,14 @@ done-strikethrough honoring ` @done`, Return continuation with
 `[ ] `, empty-checkbox Return clears, checkbox-aware Tab, all
 suppressed inside fences (`TaskList.h` semantics, delta §6);
 ==highlight==/CriticMarkup spans colored from the theme
-(delta §6 3.0.36).
+(delta §6 3.0.36). Styling-layer sizing from crosswalk §8: the
+upstream attribute surface is 13 attributes (foreground 56 sites,
+font 40, background 22, strikethrough 20, paragraph style 20, link
+15, underline 8); the AppKit-only pair is **faux bold/italic**
+(NSStrokeWidth -3.50 / NSObliqueness 0.20, no Pango analog): DECISION
+at phase open between a synthesized `pango::FontDescription` tag and
+dropping faux styles to plain+CSS class (the markdown-conversion path
+already converts them away, AppController_Markdown.m:205-210).
 
 Deliverables + tests: a highlight-model crate module (pure
 computation: ranges from buffer text) tested headless against the
@@ -649,8 +667,12 @@ tag-token chips with multi-note apply and comma-chaining (delta §1
 (map §1.2 `NotesTableView.m:1093-1112`, Phase 10's DECISION pays
 here: Atrium's title Stack, Label page / Entry page, is the proven
 shape, house §Q3); in-list rename-vs-jump Enter pref (delta §1
-3.0.28). Ports [NV]: bookmarks/snapback as note+searchString pairs
-(`BookmarksController` map §1.7).
+3.0.28). Chip rendering note (crosswalk §12): upstream uses a runtime
+subclass of the attachment cell drawing at 0.45 alpha for partial
+tokens; the translation is CSS `opacity` on the chip (Atrium pill
+pattern), behavior preserved, mechanism gone. Ports [NV]:
+bookmarks/snapback as note+searchString pairs (`BookmarksController`
+map §1.7).
 
 DECISION (the Cmd-[0-9] namespace; contract §1C/§2/§4B): upstream
 clashes hard: nvALT assigns Cmd-0/1-9 to note bookmarks (with
@@ -705,11 +727,22 @@ Ports [ALT] (delta §4 pane inventory): General (folder, external
 editor, list font/size, activation hotkey), Editing (marker choices
 bold/italic/list, completion on/off, Tab behavior, soft tabs, auto
 formats, auto-pair, link suggest, styled paste, search highlight +
-color), Fonts & Colors (body/list fonts, user scheme, editor theme +
+color; the spell-check/smart-punct live-sync ports upstream's single
+Cocoa-bindings site via settings-read + changed-signal, crosswalk
+§5), Fonts & Colors (body/list fonts, user scheme, editor theme +
 preview theme pickers with import, max text width), per-collection
 Notes pane (formats/extensions, delete confirmation), Debug pane
 [CP: logging toggles + open-log]. Hidden keys from delta §4 carried
-as config keys where they still make sense.
+as config keys where they still make sense. RISK FLAG (crosswalk
+§2): the Bring-to-Front global activation hotkey rides Carbon
+PTHotKeys upstream and has no house precedent on Linux; options are
+the XDG GlobalShortcuts portal (unproven in house) or dropping the
+binding: DECISION at phase open. Editor cursor note (crosswalk §12):
+upstream monkey-patches the process-wide I-beam cursor; the
+translation is a per-widget `gdk::Cursor` swap on enter/leave +
+theme change. The settings fan-out reproduces GlobalPrefs'
+selector-keyed registry one-for-one, including `excludingSender:`
+echo suppression (crosswalk §7).
 
 Deliverables: prefs model (typed config structs + GTK UI), theme
 file format = nvALT-compatible `.theme` JSON where feasible [ALT
@@ -748,9 +781,16 @@ budget) in CI; fractional-scale + Wayland smoke pass (brief §3).
 
 Ports [ALT]: Import URL with Readability processing and the
 markdownify verb (delta §1; map §1.10); file-drop/file batch import
-(`AlienNoteImporter` flow, map §1.10); HTML paste → text. One-way
-Simplenote escape hatch [CP, per the scoping decision]: import a
-Simplenote export archive into a folder (no live sync engine ever;
+(`AlienNoteImporter` flow, map §1.10); HTML paste → text, with the
+import sanitizer (`sanitizeForeignStylesForImporting`, crosswalk §3)
+as the boundary filter and every NSTask shell-out (perl Markdown,
+Ruby Textile, RTF conversion; crosswalk §10 surprise #10) replaced
+by the pure-Rust pipeline. The readability parse runs off-main with
+an upstream defensive invariant carried as a debug_assert
+(crosswalk §6: GGReadabilityParser re-queues itself at HIGH priority
+when it finds itself on main). One-way Simplenote escape hatch [CP,
+per the scoping decision]: import a Simplenote export archive into a
+folder per the formats §2 honor-list (no live sync engine ever;
 spec §4). Cut [CP]: Safari extension (browser clippers are ecosystem
 work; the URL scheme covers automation).
 
@@ -886,3 +926,7 @@ drift it finds is fixed in the same session.
 | Cmd-click create dedup: bind-or-refuse (upstream duplicates) | 18 | recommendation (contract §3B), confirm at phase |
 | HTML→Markdown: dom_smoothie + htmd (app crate side) | 21 | recommendation (crates §5), confirm at phase |
 | Encryption | 22 | recommendation: defer past 1.0 (age + keyring named if reopened) |
+| Config parsing: hand-written TOML subset in core, no serde | 8 | decided (crosswalk §11, dependency-free contract) |
+| Global activation hotkey: XDG GlobalShortcuts portal vs drop | 19 | open risk (crosswalk §2: Carbon PTHotKeys, no house precedent) |
+| Faux bold/italic (NSStrokeWidth/NSObliqueness): synthesized Pango tag vs drop to CSS class | 13 | open (crosswalk §8) |
+| Editor cursor: per-widget gdk::Cursor swap (upstream monkey-patches the process-wide I-beam) | 19 | decided (crosswalk §12) |
