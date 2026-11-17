@@ -147,6 +147,12 @@ impl NoteBody {
     pub fn empty() -> Self {
         NoteBody(String::new())
     }
+
+    /// Wrap text that is already valid (a `&str` is UTF-8 by
+    /// construction): the create/save paths.
+    pub fn of(text: &str) -> Self {
+        NoteBody(text.to_owned())
+    }
 }
 
 #[cfg(test)]

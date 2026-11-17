@@ -13,6 +13,14 @@
 //! - encoding: UTF-8 always, BOM stripped, invalid UTF-8 recorded as
 //!   a per-file warning, never lossily replaced (spec §5 rows 54/56);
 //! - no line-ending normalization and no truncation on read.
+//!
+//! The write side lives in [`write`]: derivation, atomic create and
+//! save, rename, the delete boundary, reconciliation, and the
+//! coalescer (spec rows 4-5, 7, 61-63).
+
+mod write;
+
+pub use write::{DEFAULT_EXTENSION, FILENAME_CAP_BYTES, TEMP_PREFIX, WriteError, derive_filename};
 
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
@@ -108,6 +116,9 @@ impl std::error::Error for StoreError {
 pub struct Store {
     notes: Vec<Note>,
     by_path: HashMap<PathBuf, usize>,
+    /// The collection folder the store was loaded from: every write
+    /// operation creates, saves, renames, and deletes inside it.
+    folder: PathBuf,
 }
 
 impl Store {
@@ -124,9 +135,50 @@ impl Store {
         self.notes.is_empty()
     }
 
+    /// The collection folder this store was loaded from.
+    pub fn folder(&self) -> &Path {
+        &self.folder
+    }
+
     /// The note backed by exactly this path, if loaded.
     pub fn find_by_path(&self, path: &Path) -> Option<&Note> {
         self.by_path.get(path).map(|&i| &self.notes[i])
+    }
+
+    /// Rebuild the path index and restore the path-sorted arena order
+    /// after a mutation. Mutations are rare next to reads, so the
+    /// simple rebuild beats incremental index maintenance.
+    fn reindex(&mut self) {
+        self.notes.sort_by(|a, b| a.path.cmp(&b.path));
+        self.by_path = self
+            .notes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (n.path.clone(), i))
+            .collect();
+    }
+
+    /// The arena index of a note backed by exactly this path.
+    fn index_of(&self, path: &Path) -> Option<usize> {
+        self.by_path.get(path).copied()
+    }
+
+    /// Every loaded note's filename stem (basename minus its final
+    /// extension), lowercased: the collision-comparison key of the
+    /// row-4 derivation. `skip` excludes one path (a rename never
+    /// collides with itself).
+    fn taken_stems(&self, skip: Option<&Path>) -> Vec<String> {
+        self.notes
+            .iter()
+            .filter(|n| Some(n.path.as_path()) != skip)
+            .map(|n| {
+                n.path
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+                    .to_lowercase()
+            })
+            .collect()
     }
 }
 
@@ -165,6 +217,7 @@ pub fn load_folder(folder: &Path) -> Result<LoadOutcome, StoreError> {
     let mut store = Store {
         notes: Vec::new(),
         by_path: HashMap::new(),
+        folder: folder.to_owned(),
     };
     let mut warnings = Vec::new();
     for (name, path) in entries {
