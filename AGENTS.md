@@ -10,8 +10,10 @@ NV by Zachary Schneirov, Brett Terpstra's nvALT fork, and the closed-source
 nvUltra successor. One search field drives find-and-create over a folder of
 plain-text notes. Rust, three-crate workspace, GPL-3.0.
 
-Status: pre-development skeleton. The contract lives in `spec.md`; the
-phase plan in `roadmap.md`. Read both before any code change.
+Status: the engine arc (roadmap Phases 1-3) is complete and tested;
+the write path, GUI, and CLI are ahead (Phases 4+). The contract lives
+in `spec.md`; the phase plan in `roadmap.md`. Read both before any
+code change.
 
 ## Layout
 
@@ -72,12 +74,15 @@ Every roadmap phase runs the same loop, in this order:
 ## Commands
 
 - Build: `cargo build`
-- Test: `cargo test` (unit tests live in the core crate; the engine's
-  query language gets golden tests when its phase lands)
+- Test: `cargo test` (all suites live in the core crate: store
+  fixture folders, query goldens over the three upstream
+  vocabularies, the search oracle property suite, and two opt-in
+  benchmarks)
 - Lint: `cargo clippy --workspace --all-targets -- -D warnings`
 - Format: `cargo fmt --all`
-- CI: `.github/workflows/ci.yml`, pins copied byte-for-byte from Docket
-  (dependabot maintains them fleet-wide). The release workflow joins at
+- CI: `.github/workflows/ci.yml`, shape from Docket's hardened
+  workflow with action pins copied byte-for-byte from Quire's `ci.yml`
+  (the same Rust + GTK4 stack; dependabot maintains them fleet-wide). The release workflow joins at
   the packaging phase, shaped like Docket's `release.yml`.
 
 ## Conventions

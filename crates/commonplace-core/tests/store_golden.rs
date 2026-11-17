@@ -416,8 +416,9 @@ fn a_file_path_is_not_a_folder() {
 
 /// Locally skipped by default; opt in with:
 /// `cargo test -p commonplace-core --test store_golden -- --ignored load_10k`
-/// Phase 3 owns the real latency gate (roadmap); this stub only proves
-/// the loader handles the 10k-note folder and returns it sorted.
+/// The filter latency gate lives in tests/search_bench.rs; this stub
+/// only proves the loader handles the 10k-note folder and returns it
+/// sorted.
 #[test]
 #[ignore = "opt-in load benchmark (10k files)"]
 fn load_10k_note_folder_benchmark() {
