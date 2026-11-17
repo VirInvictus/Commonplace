@@ -36,7 +36,7 @@ messages, and branch commits.
 
 | Feature | Earliest | Recent |
 |---|---|---|
-| File-based storage (vs NV's DB), extension/type tables per format | nvALT 1.x (`NotationFileManager.m` added 2011-01-14) | 3.0.1: new DBs stored as plain text files, default extension `.md` (CHANGELOG:536-537) |
+| File-based storage (vs NV's DB), extension/type tables per format | nvALT 1.x (`NotationFileManager.m` added 2011-01-14; the file-per-note *option* also exists in base nv, which has had the file since 2009) | 3.0.1: new DBs stored as plain text files, default extension `.md` (CHANGELOG:536-537). Precisely: nvALT 1.x/2.x still *defaulted* to the single database; 3.0.1 (commit c050f15, "Default to Markdown note files") flipped the default to PlainTextFormat |
 | Encryption + keychain + password generator | original NV (shared); nvALT moved crypto to system libs | 3.0.1: "Crypto now uses the system libraries instead of the bundled OpenSSL" (CHANGELOG:552); fork-only `pbkdf2.c/h`, `CRC32.c/h`, `FSExchangeObjectsCompat.c/h` |
 | Finder tags replace OpenMeta for note tags (OpenMeta copied over at launch) | 3.0.1 (CHANGELOG:538); `TagEditingManager.m` 95→721 lines; `GlobalPrefs.h:164-166 useFinderTags` | 3.0.14 (token editing, dark-theme legibility) |
 | Convert to Markdown (migrate a Rich-Text library into a new .md folder) + one-time launch prompt | 3.0.1 (CHANGELOG:545-546); `AppController_Markdown.m` (whole file); `offerMarkdownConversionIfNeeded` AppController.m:553; action `convertNotesToMarkdown:` NotationPrefsViewController.h:94 | 3.0.20/3.0.21: completes, switches folder, reports success (CHANGELOG:254-256, 237-239) |

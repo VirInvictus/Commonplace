@@ -86,7 +86,7 @@ number from `roadmap.md`.
 
 | # | Feature | Tier | Phase | Notes/citation |
 |---|---------|------|-------|----------------|
-| 1 | Notes as individual plain-text files | NV, ALT | 1, 4 | NV's default was a compressed internal DB with optional encryption; file-per-note became the model under nvALT (brief, map §8) |
+| 1 | Notes as individual plain-text files | NV, ALT | 1, 4 | NV shipped file-per-note as a format option but defaulted to a compressed, optionally-encrypted single DB (as did nvALT 1.x/2.x); nvALT 3.0.1 flipped the default to plain-text `.md` files (commit c050f15; brief, map §4/§8) |
 | 2 | Plain-text extensions `md txt text utf8 taskpaper`, `md` default | ALT | 1, 4 | map §4 (`NotationPrefs.m:252-271`) |
 | 3 | First-line title, 60-char cap, break-at-space, "Untitled Note" | NV | 1 | map §4 (`NSString_NV.m:265-328`) |
 | 4 | Filename rules: `:`→`-`, leading `.`→`_`, 255 cap, `title.N.ext` collisions | ALT | 4 | map §4 (`NotationFileManager.m:412-456`) |
