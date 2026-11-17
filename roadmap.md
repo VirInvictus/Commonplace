@@ -227,8 +227,10 @@ yes, rewrite). Trash [CP]: the `trash` crate 5.4 (verified
 freedesktop-compliant, light default deps, crates §3) in the app
 crate beats hand-rolling; the engine exposes a delete-with-callback
 boundary so core stays dependency-free. Atomic writes [ALT]: temp +
-rename, `renameat2(RENAME_EXCHANGE)` for the replace case where
-upstream used `FSExchangeObjects` (map §7 portability note 4).
+rename; upstream's `FSExchangeObjects` maps to std's `rename(2)`
+atomic replace (spec row 5's recorded divergence: the dependency-free
+core has no `renameat2`, and the observable contract - never a
+half-written note - holds).
 External-change detection [ALT]: mtime+size reconciliation pass
 (inotify joins at Phase 10; the reconciliation algorithm lands here,
 `synchronizeNotesFromDirectory` semantics; crates §2: atomic saves
@@ -248,14 +250,15 @@ Deliverables: `store::write`: create, rename, delete, atomic save,
 rescan-reconcile. Tests: collision tables, rename revert, atomicity
 under simulated crash (kill mid-write), conflict-file admission.
 
-- [ ] create / rename (revert-on-failure) / delete-to-trash boundary
-- [ ] link rewriting on rename (the [CP] improvement; upstream is a stub)
-- [ ] atomic save + rescan-reconcile (path + re-stat keying)
-- [ ] write coalescing: the two-handle cancellation matrix (edit cancels
+- [x] create / rename (revert-on-failure) / delete-to-trash boundary
+- [x] link rewriting on rename (the [CP] improvement; upstream is a stub)
+- [x] atomic save + rescan-reconcile (path + re-stat keying)
+- [x] write coalescing: the two-handle cancellation matrix (edit cancels
       the write coalescer, not the fsync cadence; crosswalk §10)
-- [ ] the trash-crate decision confirmed in the ledger before code lands
-- [ ] tests: collision tables, rename revert, crash-mid-write, conflict admission
-- [ ] docs carried: spec rows, patchnotes entry
+- [x] the trash-crate decision confirmed in the ledger before code lands
+- [x] tests: collision tables, rename revert, crash-mid-write, conflict admission
+- [x] docs carried: spec rows (the patchnotes entry lands with the
+      v0.3.0 release, per the release-batching section)
 
 ## Phase 5: Engine: tags, metadata blocks, links
 
@@ -292,12 +295,13 @@ Phase 4, derived backlink index [CP, brief §2 gap]. Tests: golden
 blocks, transclusion cycles rejected, backlink correctness under
 rename.
 
-- [ ] metadata-block parser (grammar pinned from formats §1)
-- [ ] the `Title:`-interaction DECISION recorded in spec before code lands
-- [ ] link extraction + rename rewriting hookup
-- [ ] derived backlink index
-- [ ] tests: golden blocks, transclusion cycles, backlinks under rename
-- [ ] docs carried: spec rows (incl. the Finder-tag divergence), patchnotes
+- [x] metadata-block parser (grammar pinned from formats §1)
+- [x] the `Title:`-interaction DECISION recorded in spec before code lands
+- [x] link extraction + rename rewriting hookup
+- [x] derived backlink index
+- [x] tests: golden blocks, transclusion cycles, backlinks under rename
+- [x] docs carried: spec rows (incl. the Finder-tag divergence); the
+      patchnotes entry lands with the v0.3.0 release
 
 ## Phase 6: Engine: render boundary + renderer decision
 

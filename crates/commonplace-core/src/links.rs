@@ -79,9 +79,14 @@ pub fn wiki_links(body: &str) -> Vec<WikiLink> {
             scan = interior_start;
             continue;
         }
-        // Newline trap: resume after the newline, not after the `]]`.
-        if let Some(nl_rel) = interior.find('\n') {
-            scan = interior_start + nl_rel + 1;
+        // Newline trap: resume after the newline, not after the
+        // `]]`. Upstream's newlineCharacterSet covers CR, NEL, and
+        // the Unicode line/paragraph separators too.
+        if let Some((nl_rel, nl_char)) = interior
+            .char_indices()
+            .find(|(_, c)| matches!(*c, '\n' | '\r' | '\u{85}' | '\u{2028}' | '\u{2029}'))
+        {
+            scan = interior_start + nl_rel + nl_char.len_utf8();
             continue;
         }
         // Last-char guard or ObjC shape: no link here, but the scan
@@ -116,12 +121,13 @@ pub fn transclusions(body: &str) -> Vec<String> {
             break;
         };
         let interior = &body[interior_start..interior_start + end_rel];
-        if !interior.is_empty()
-            && !interior.contains('{')
-            && !interior.contains('}')
-            && !interior.contains('\n')
+        let trimmed = interior.trim();
+        if !trimmed.is_empty()
+            && !trimmed.contains('{')
+            && !trimmed.contains('}')
+            && !trimmed.contains('\n')
         {
-            out.push(interior.trim().to_owned());
+            out.push(trimmed.to_owned());
         }
         scan = interior_start + end_rel + 2;
     }
@@ -207,7 +213,12 @@ impl crate::store::Store {
         let current = stack.last()?;
         let note = self.find_by_path(current)?;
         for target in transclusions(note.body.as_str()) {
-            let target_path = self.resolve_target(&target)?;
+            // An unresolvable target ends ITS BRANCH only, never the
+            // walk: a missing sibling must not hide a real cycle
+            // behind it.
+            let Some(target_path) = self.resolve_target(&target) else {
+                continue;
+            };
             if stack.contains(&target_path) {
                 // A cycle: the stack plus the repeated path.
                 let mut cycle = stack.clone();

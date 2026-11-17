@@ -98,7 +98,7 @@ pub fn derive_filename(
     extension: &str,
     mut taken: impl FnMut(&str) -> bool,
 ) -> String {
-    let mut stem = title.replace(':', "-");
+    let mut stem = title.replace([':', '/'], "-");
     if stem.starts_with('.') {
         stem.replace_range(0..1, "_");
     }
@@ -170,23 +170,29 @@ impl Store {
         let new_path = folder.join(&filename);
         let final_path = new_path.clone();
 
-        if new_path != old_path {
-            fs::rename(&old_path, &new_path).map_err(|source| WriteError::Io {
-                path: old_path.clone(),
-                source,
-            })?;
-        }
-
         // Rewrite the title where the content says it is: the
         // metadata Title: key when a block carries one (row 53),
         // otherwise the content's first line. Everything else stays
-        // byte for byte.
+        // byte for byte. Two atomic legs: the retitled content lands
+        // at the OLD path first (so a failure there is a clean
+        // no-op), then the move; a move failure rolls the content
+        // back best-effort.
         let new_content = rewrite_title_in_content(
             self.notes[index].body.as_str(),
             &old_display_title,
             new_title,
         );
-        atomic_write(&new_path, new_content.as_bytes())?;
+        let old_content = self.notes[index].body.as_str().as_bytes().to_vec();
+        atomic_write(&old_path, new_content.as_bytes())?;
+        if new_path != old_path
+            && let Err(source) = fs::rename(&old_path, &new_path)
+        {
+            let _ = atomic_write(&old_path, &old_content);
+            return Err(WriteError::Io {
+                path: old_path.clone(),
+                source,
+            });
+        }
 
         let note = &mut self.notes[index];
         note.path = new_path;
@@ -206,6 +212,7 @@ impl Store {
             if let Ok(created) = meta.created() {
                 note.created = created;
             }
+            note.size = meta.len();
         }
         self.reindex();
         // Row 65's [CP] improvement: inbound [[links]] matching the
@@ -338,6 +345,7 @@ impl Store {
             .created()
             .unwrap_or(meta.modified().unwrap_or(SystemTime::UNIX_EPOCH));
         note.mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+        note.size = meta.len();
         Ok(note.clone())
     }
 }
@@ -352,9 +360,16 @@ fn rewrite_title_in_content(content: &str, old_title: &str, new_title: &str) -> 
     let parsed = crate::metadata::parse_metadata(content);
     if parsed.end_offset == 0 {
         // No metadata block: replace the first line (or the whole
-        // content when there is only one line).
+        // content when there is only one line), keeping its own
+        // line-ending style.
         return match content.split_once('\n') {
-            Some((_, rest)) => format!("{new_title}\n{rest}"),
+            Some((first, rest)) => {
+                if first.ends_with('\r') {
+                    format!("{new_title}\r\n{rest}")
+                } else {
+                    format!("{new_title}\n{rest}")
+                }
+            }
             None => new_title.to_owned(),
         };
     }
@@ -382,10 +397,12 @@ fn rewrite_title_in_content(content: &str, old_title: &str, new_title: &str) -> 
             rebuilt.push_str(line);
             continue;
         }
-        if let Some((key, _)) = crate::metadata::meta_line(line)
+        if let Some((key, _)) = crate::metadata::meta_line(line.trim_end_matches(['\r', '\n']))
             && crate::metadata::normalize_key(key) == "title"
         {
-            rebuilt.push_str(&format!("{key}: {new_title}\n"));
+            // Keep the line's own terminator: CRLF stays CRLF.
+            let terminator = if line.ends_with("\r\n") { "\r\n" } else { "\n" };
+            rebuilt.push_str(&format!("{key}: {new_title}{terminator}"));
             continue;
         }
         rebuilt.push_str(line);
@@ -497,24 +514,15 @@ impl Store {
         };
 
         // Diff by path: what the fresh scan sees vs what we hold.
-        let mut kept: Vec<Note> = Vec::with_capacity(outcome.store.notes.len());
         let mut fresh_paths: Vec<PathBuf> = Vec::with_capacity(outcome.store.len());
         for fresh in outcome.store.notes() {
             fresh_paths.push(fresh.path.clone());
             match self.index_of(&fresh.path) {
-                None => {
-                    report.added.push(fresh.path.clone());
-                    kept.push(fresh.clone());
-                }
+                None => report.added.push(fresh.path.clone()),
                 Some(i) => {
                     let current = &self.notes[i];
                     if current.mtime != fresh.mtime || current.size != fresh.size {
                         report.updated.push(fresh.path.clone());
-                        kept.push(fresh.clone());
-                    } else {
-                        // Nothing moved on disk; keep ours (equal by
-                        // the key, and ours avoids re-decoding).
-                        kept.push(current.clone());
                     }
                 }
             }

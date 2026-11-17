@@ -107,9 +107,6 @@ pub(crate) fn meta_line(line: &str) -> Option<(&str, &str)> {
     let colon = colon?;
     let key = &line[..colon];
     let value = line[colon + 1..].trim();
-    if !value.is_empty() && value.starts_with(|c: char| c.is_whitespace()) {
-        return None;
-    }
     Some((key.trim_end(), value))
 }
 
@@ -125,35 +122,68 @@ fn is_dot_fence(line: &str) -> bool {
     line == "..."
 }
 
-/// Does the line continue the current value? Per the scanners
-/// (formats §1.3): indented, or containing no colon, or whose only
-/// colon is a URL/email colon (the first-colon form is pinned here:
-/// `scheme://` or `mailto:`).
-fn contains_url_marker(line: &str) -> bool {
-    if line.contains("mailto:") {
-        return true;
+/// Is the line ITSELF a URL or email (the bare-URL rule, formats
+/// section 1.1: "a line that is a URL or email is never metadata")?
+/// Anchored: the line must start with a `scheme://` prefix or
+/// `mailto:`. The URL pattern outranks the meta pattern, so
+/// `https://example.com` never becomes a key named `https`.
+fn is_bare_url(line: &str) -> bool {
+    let first_run = line.split_whitespace().next().unwrap_or("");
+    if let Some(rest) = first_run.strip_prefix("mailto:") {
+        return !rest.is_empty();
     }
-    line.match_indices("://").any(|(i, _)| {
-        let scheme: String = line[..i]
+    match first_run.find("://") {
+        Some(i) if i > 0 => first_run[..i]
             .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.')),
+        _ => false,
+    }
+}
+
+/// Is every colon in the line inside a URL or email run? The pinned
+/// continuation rule (formats section 1.3, "whose only colon is
+/// inside a URL or email"): split the line into whitespace-delimited
+/// runs; a colon is a URL colon when its run carries a `scheme://`
+/// marker or starts with `mailto:`. `CSS: https://x.com/s.css` fails
+/// (its first colon's run is bare `CSS:`) and so starts a new key,
+/// while `see https://x.y/z:80` passes (both colons sit in the URL
+/// run) and continues.
+fn colons_all_in_url_runs(line: &str) -> bool {
+    let mut colons = line.match_indices(':').map(|(i, _)| i).peekable();
+    if colons.peek().is_none() {
+        return false;
+    }
+    for colon in colons {
+        let run_start = line[..colon]
+            .char_indices()
             .rev()
-            .take_while(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
-            .collect();
-        !scheme.is_empty()
-    })
+            .find(|(_, c)| c.is_whitespace())
+            .map(|(i, _)| i + 1)
+            .unwrap_or(0);
+        let run_end = line[colon..]
+            .find(char::is_whitespace)
+            .map(|i| colon + i)
+            .unwrap_or(line.len());
+        let run = &line[run_start..run_end];
+        let is_url_run = run.contains("://") || run.starts_with("mailto:");
+        if !is_url_run {
+            return false;
+        }
+    }
+    true
 }
 
 /// Does the line continue the current value? Per the scanners
-/// (formats section 1.3): indented, containing no colon, or bearing a
-/// URL/email marker anywhere in the line.
+/// (formats section 1.3): indented, containing no colon, or with
+/// every colon inside a URL/email run.
 fn continues_value(line: &str) -> bool {
     if line.starts_with(' ') || line.starts_with('\t') {
         return true;
     }
-    if contains_url_marker(line) {
+    if !line.contains(':') {
         return true;
     }
-    !line.contains(':')
+    colons_all_in_url_runs(line)
 }
 
 /// Clean a raw value: backslash-at-end-of-line becomes a literal
@@ -190,41 +220,49 @@ fn clean_value(raw: &str) -> String {
 
 /// Parse a note body's metadata block. Never fails: a body without a
 /// block parses as empty with `end_offset == 0`, and a malformed
-/// line simply ends the block.
+/// line simply ends the block. `end_offset` is a BYTE offset where
+/// the note's real content begins (after the terminating blank line
+/// or fence); `0` means no block at all. CRLF bodies are handled:
+/// the `\r` of a `\r\n` terminator belongs to the line ending, never
+/// to the key or value.
 pub fn parse_metadata(body: &str) -> ParsedMetadata {
     let mut metadata = Metadata::default();
-    let lines = body.lines();
-
-    // Line 1 decides the mode. A leading fence opens YAML-compatible
-    // mode; a meta line opens plain mode; anything else means no
-    // block.
     let mut current_key: Option<String> = None;
     let mut raw_value = String::new();
     let mut end_offset = 0usize;
-    let mut consumed_chars = 0usize;
     let mut any_meta = false;
     let mut yaml_mode = false;
     let mut mode_decided = false;
 
-    for line in lines {
-        let line_chars = line.chars().count() + 1; // + the newline
+    let mut pos = 0usize;
+    while pos < body.len() {
+        // One raw line: up to (not including) the next \n or EOF.
+        let nl = body[pos..].find('\n').map(|r| pos + r);
+        let (raw, after) = match nl {
+            Some(n) => (&body[pos..n], n + 1),
+            None => (&body[pos..], body.len()),
+        };
+        // The \r of a \r\n terminator is line-ending, not content.
+        let line = raw.strip_suffix('\r').unwrap_or(raw);
+
         if !mode_decided {
             mode_decided = true;
             if is_fence(line) {
                 yaml_mode = true;
-                consumed_chars += line_chars;
+                pos = after;
                 continue;
             }
             if is_blank(line) {
-                // A blank first line: no block (formats §1.1).
+                // A blank first line: no block (formats section 1.1).
                 return ParsedMetadata {
                     metadata,
                     end_offset: 0,
                 };
             }
-            if contains_url_marker(line) {
-                // A URL or email line is never metadata, even with a
-                // colon (formats section 1.1): no block starts.
+            if is_bare_url(line) {
+                // A line that IS a URL or email is never metadata
+                // (formats section 1.1; the URL pattern outranks the
+                // meta pattern).
                 return ParsedMetadata {
                     metadata,
                     end_offset: 0,
@@ -235,7 +273,7 @@ pub fn parse_metadata(body: &str) -> ParsedMetadata {
                     any_meta = true;
                     current_key = Some(normalize_key(key));
                     raw_value = value.to_owned();
-                    consumed_chars += line_chars;
+                    pos = after;
                     continue;
                 }
                 None => {
@@ -249,12 +287,11 @@ pub fn parse_metadata(body: &str) -> ParsedMetadata {
 
         if yaml_mode {
             if is_fence(line) || is_dot_fence(line) {
-                consumed_chars += line_chars;
-                end_offset = consumed_chars;
+                end_offset = after;
                 break;
             }
             if is_blank(line) {
-                end_offset = consumed_chars;
+                end_offset = after;
                 break;
             }
             match meta_line(line) {
@@ -264,19 +301,19 @@ pub fn parse_metadata(body: &str) -> ParsedMetadata {
                     }
                     current_key = Some(normalize_key(key));
                     raw_value = value.to_owned();
-                    consumed_chars += line_chars;
+                    pos = after;
                 }
                 None => {
                     // Continuations in YAML mode behave the same.
                     if current_key.is_some() {
                         raw_value.push('\n');
                         raw_value.push_str(line);
-                        consumed_chars += line_chars;
+                        pos = after;
                     } else {
                         // Should not happen (YAML mode always has a
                         // current key after its first key line);
                         // treat as body.
-                        end_offset = consumed_chars;
+                        end_offset = pos;
                         break;
                     }
                 }
@@ -286,14 +323,13 @@ pub fn parse_metadata(body: &str) -> ParsedMetadata {
 
         // Plain MMD mode.
         if is_blank(line) {
-            consumed_chars += line_chars;
-            end_offset = consumed_chars;
+            end_offset = after;
             break;
         }
         if continues_value(line) {
             raw_value.push('\n');
             raw_value.push_str(line);
-            consumed_chars += line_chars;
+            pos = after;
             continue;
         }
         match meta_line(line) {
@@ -303,11 +339,12 @@ pub fn parse_metadata(body: &str) -> ParsedMetadata {
                 }
                 current_key = Some(normalize_key(key));
                 raw_value = value.to_owned();
-                consumed_chars += line_chars;
+                pos = after;
             }
             None => {
                 // A non-continuation, non-meta line ends the block;
-                // the block's content boundary is before this line.
+                // the content boundary is before this line.
+                end_offset = pos;
                 break;
             }
         }
@@ -319,9 +356,9 @@ pub fn parse_metadata(body: &str) -> ParsedMetadata {
     }
 
     // No terminating blank line and no fence: at EOF the whole
-    // prefix consumed is the block (end_offset past the last line).
+    // consumed prefix is the block.
     if end_offset == 0 && any_meta {
-        end_offset = consumed_chars;
+        end_offset = body.len();
     }
 
     ParsedMetadata {
@@ -479,9 +516,55 @@ mod tests {
 
     #[test]
     fn block_without_trailing_blank_runs_to_eof() {
+        // BYTE offset, and no phantom newline for an unterminated
+        // final line: end lands exactly at the body's end.
         let p = parse_metadata("Title: The End");
         assert_eq!(p.metadata.title(), Some("The End"));
-        assert_eq!(p.end_offset, "Title: The End".chars().count() + 1);
+        assert_eq!(p.end_offset, "Title: The End".len());
+    }
+
+    #[test]
+    fn end_offset_is_a_byte_offset_across_unicode() {
+        // Three two-byte chars in the key line: the byte offset must
+        // clear the whole block, not a char count of it.
+        let body = "Title: caf\u{e9}\u{e9}\u{e9}\n\nbody";
+        let p = parse_metadata(body);
+        assert_eq!(p.metadata.title(), Some("caf\u{e9}\u{e9}\u{e9}"));
+        assert_eq!(&body[p.end_offset..], "body");
+    }
+
+    #[test]
+    fn crlf_blocks_parse_and_terminate() {
+        let body = "Title: Old\r\n\r\nbody\r\n";
+        let p = parse_metadata(body);
+        assert_eq!(p.metadata.title(), Some("Old"));
+        // The blank CRLF line terminates; content starts after it.
+        assert_eq!(&body[p.end_offset..], "body\r\n");
+    }
+
+    #[test]
+    fn url_valued_keys_start_new_pairs_not_continuations() {
+        // The CSS standard key carries a URL value: its line must not
+        // be swallowed into the previous value (review finding).
+        let p = parse_metadata("Title: A\nCSS: https://x.com/s.css\n\nbody");
+        assert_eq!(p.metadata.title(), Some("A"));
+        assert_eq!(p.metadata.get("css"), Some("https://x.com/s.css"));
+    }
+
+    #[test]
+    fn prose_first_line_with_a_url_is_body_not_metadata() {
+        // The bare-URL rule is anchored: a line that merely CONTAINS
+        // a URL is ordinary (formats section 1.1: "a line that IS a
+        // URL").
+        let p = parse_metadata("Title: Notes https://example.com/x\n\nbody");
+        assert_eq!(p.metadata.title(), Some("Notes https://example.com/x"));
+    }
+
+    #[test]
+    fn bare_url_first_line_starts_no_block() {
+        let p = parse_metadata("https://example.com/page\n\nbody");
+        assert!(p.metadata.is_empty());
+        assert_eq!(p.end_offset, 0);
     }
 
     #[test]

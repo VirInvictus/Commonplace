@@ -349,9 +349,18 @@ impl FilterState {
                     // Tag words scan the whole buffers fresh and leave
                     // the resume pointers untouched
                     // (noteMatchesTagWord, NoteObject.m:1842-1848).
+                    // The row-57 tag-title side now that the store
+                    // exists: #word = folded prefix over tag titles,
+                    // plus the literal rule.
+                    let folded_name = fold(&needle[1..]);
+                    let tag_titles: Vec<String> = crate::tags::note_tags(&notes[cand.index])
+                        .iter()
+                        .map(|t| fold(t))
+                        .collect();
                     let title = &notes[cand.index].folded_title;
                     let body = self.folded_body(cand.index, notes);
-                    if title.contains(needle) || body.contains(needle) {
+                    let title_hit = tag_titles.iter().any(|tag| tag.starts_with(&folded_name));
+                    if title_hit || title.contains(needle) || body.contains(needle) {
                         kept.push(cand);
                     }
                     continue;

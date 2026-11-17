@@ -21,38 +21,40 @@ use crate::note::Note;
 /// The inline `#tags` in a body, in first-appearance order, each
 /// still in its original case (matching folds later).
 pub fn inline_tags(body: &str) -> Vec<String> {
+    let chars: Vec<(usize, char)> = body.char_indices().collect();
     let mut tags = Vec::new();
-    let mut chars = body.char_indices().peekable();
-    let mut prev_alphanumeric = false;
-    while let Some((i, c)) = chars.next() {
-        if c == '#' && !prev_alphanumeric {
-            // A tag candidate: at least one alphanumeric, then the
-            // tag charset.
-            let mut end = i + 1;
+    let mut i = 0usize;
+    while i < chars.len() {
+        let (byte_i, c) = chars[i];
+        let boundary = i == 0 || !chars[i - 1].1.is_alphanumeric();
+        if c == '#' && boundary {
             let mut started = false;
-            for (_, tc) in chars.by_ref() {
+            let mut end_idx = i + 1;
+            let mut j = i + 1;
+            while j < chars.len() {
+                let tc = chars[j].1;
                 if tc.is_alphanumeric() {
                     started = true;
-                    end += tc.len_utf8();
+                    end_idx = j + 1;
+                    j += 1;
                 } else if started && (tc == '-' || tc == '_') {
-                    end += tc.len_utf8();
+                    end_idx = j + 1;
+                    j += 1;
                 } else {
                     break;
                 }
             }
             if started {
-                tags.push(body[i + 1..end].to_owned());
-                // The character that broke the run decides the next
-                // boundary; recompute from it next loop.
-                prev_alphanumeric = body[..end]
-                    .chars()
-                    .next_back()
-                    .map(|c| c.is_alphanumeric())
-                    .unwrap_or(false);
+                let end_byte = chars.get(end_idx).map(|&(b, _)| b).unwrap_or(body.len());
+                tags.push(body[byte_i + 1..end_byte].to_owned());
+                // Resume AT the breaking character: a '#' directly
+                // after a tag (or its trailing -/_) starts a new
+                // candidate.
+                i = end_idx;
                 continue;
             }
         }
-        prev_alphanumeric = c.is_alphanumeric();
+        i += 1;
     }
     tags
 }
@@ -95,7 +97,7 @@ impl TagIndex {
         for (i, note) in notes.iter().enumerate() {
             let mut seen: Vec<String> = Vec::new();
             for tag in note_tags(note) {
-                let folded = tag.to_lowercase();
+                let folded = crate::fold::fold(&tag);
                 if seen.contains(&folded) {
                     continue;
                 }
@@ -110,8 +112,11 @@ impl TagIndex {
     /// a leading `#` on the query is accepted and ignored, so search
     /// tokens work unmodified).
     pub fn notes_for(&self, tag: &str) -> &[usize] {
-        let name = tag.strip_prefix('#').unwrap_or(tag).to_lowercase();
-        self.index.get(&name).map(|v| v.as_slice()).unwrap_or(&[])
+        let name = tag.strip_prefix('#').unwrap_or(tag);
+        self.index
+            .get(&crate::fold::fold(name))
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
     }
 
     /// The distinct folded tags in the index, sorted.
