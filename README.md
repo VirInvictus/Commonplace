@@ -14,14 +14,16 @@ forward on the Mac. Commonplace carries it to Linux.
 
 ## Status
 
-Engine and CLI complete, GUI ahead. The behavior contract lives
+The app is alive. The behavior contract lives
 in `spec.md`; the phase-by-phase port plan (which upstream code
 lands when) lives in `roadmap.md`. Research notes that feed those
 phases live in `research/`. The engine loads, searches, sorts,
 filters, writes, tags, links, renders, and exports a notes folder
-headlessly (Phases 1-7), and `commonplace-cli` drives all of it from
-the shell (Phases 8-9, v0.5.0; see the CLI section below); the GTK4
-app comes next (v0.6.0+).
+headlessly (Phases 1-7), `commonplace-cli` drives all of it from the
+shell (Phases 8-9, v0.5.0; see the CLI section below), and the GTK4
+app runs: the two-pane shell, the live list over a watched folder,
+and the one-field search machine (Phases 10-11, v0.6.0). The editor,
+preview, and preferences phases are ahead (v0.7.0+).
 
 ## What it does
 
@@ -33,7 +35,8 @@ app comes next (v0.6.0+).
 - A CLI (`commonplace-cli`) with a machine surface, because the engine
   is GUI-free and testable headless.
 - A GTK4 app (plain GTK4, no libadwaita) in the house Kanagawa Dragon
-  style, keyboard-first like the original, coming next.
+  style, keyboard-first like the original: the shell runs today (the
+  editor and preview phases are next).
 - Preview and export for Markdown/MultiMarkdown, in the nvALT/nvUltra
   tradition (export is in the engine and the CLI today; the preview
   pane ships with the app phases).

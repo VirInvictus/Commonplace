@@ -2,6 +2,54 @@
 
 Newest first.
 
+## v0.6.0 (2026-11-20)
+
+- The app rises, Phases 10-11 of the roadmap: the first GTK4 window,
+  the live list, and the search-field state machine that is the whole
+  reason the port exists. The engine and CLI surfaces are unchanged;
+  this release is the shell over them.
+- The two-pane shell (Phase 10): the NV layout with the search field
+  above the note list and the editor pane right; a sort picker
+  (Date Modified / Date Created / Title, with the upstream defaults
+  date-modified-reversed); an empty state; the degraded window that
+  names a missing notes folder instead of crashing. The list runs the
+  house shape: `GtkListView` + `SingleSelection` (autoselect off,
+  can-unselect on) over a `gio::ListStore` of note GObjects, rows
+  through a `SignalListItemFactory` with bind-time recycling, and the
+  body preview hard-capped at 400 characters before Pango sees it.
+- Styling is vir-gtk (the house styling layer, the libadwaita
+  replacement) with the Kanagawa dragon/lotus palettes following the
+  system dark/light setting through the portal, re-splicing on every
+  flip. vir-gtk joins as a git dependency per its own documented
+  consumption model; the app-tier stylesheet carries the quiet-toggle
+  override while the crate's accent-as-checked-default stands (filed
+  upstream as vir-gtk#1).
+- File watching (Phase 10): notify 8.2 + notify-debouncer-full 0.7 in
+  the app crate only; every coalesced event batch is one
+  reconcile-then-repopulate pass, with the Phase 4 reconcile (path +
+  re-stat keying) remaining the truth of what changed. Watch behavior
+  tests headless: external temp-plus-rename writes and renames signal
+  reconcile.
+- The search-field state machine (Phase 11, the defining UX ported
+  1:1): typing filters incrementally; a title prefix completes into
+  the field with the remainder selected; Return edits the selected
+  note or creates one titled with the field text; Escape clears
+  field, selection, and refocuses; Up/Down walk the list with the
+  field's text kept selected; Ctrl-Up/Down jump to the ends; Tab eats
+  when empty, re-completes on an unmatched query with candidates, and
+  focuses the body when matched; Ctrl-U clears the line; the field
+  keeps its typed text when the selection changes; and typing while
+  the list is focused lands in the field. Launch restores the last
+  search and last note from the config (`last_query`, `last_note`).
+  The snapback machinery follows DualField's actual split: a
+  typed-search slot beside a followed-links history that only route
+  navigation pushes and only user typing wipes.
+- The state machine is a headless model that answers events with
+  actions; the GTK shell applies them. The whole behavior table tests
+  without GTK (18 unit tests), and the live flow (type, complete,
+  Return, relaunch-restore) was verified end to end on the real
+  desktop with captures.
+
 ## v0.5.0 (2026-11-20)
 
 - The CLI arc, Phases 8-9 of the roadmap: the first runnable

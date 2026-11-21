@@ -958,7 +958,7 @@ with v0.9.0, M3 is v1.0.0 itself.
 | v0.3.0 | 4-5 | notes become writable: upstream filename rules, atomic saves, external-change reconcile, then tags/metadata blocks and the link graph (shipped 2026-11-17) |
 | v0.4.0 | 6-7 | render boundary + export core: comrak behind the core trait (the first sanctioned dependency, in a frontend crate), export verbs, round-trip proofs; the engine is feature-complete after this (shipped 2026-11-20) |
 | v0.5.0 | 8-9 | the CLI arc: verbs, `--json` shapes, exit codes, config, saved searches, completions; the first runnable artifact; **M1 fires here** (shipped 2026-11-20) |
-| v0.6.0 | 10-11 | the app rises: GTK4 window, live list over a watched folder, and the search-field state machine, the phase the project exists for |
+| v0.6.0 | 10-11 | the app rises: GTK4 window, live list over a watched folder, and the search-field state machine, the phase the project exists for (shipped 2026-11-20) |
 | v0.7.0 | 12-14 | the editor arc: pane with autosave/undo/scroll memory, markdown highlighting + task lists, lists/fences/pairs + the Linux keymap |
 | v0.8.0 | 15-16 | live preview (WebKitGTK, slicing, themes) + collections |
 | v0.9.0 | 17-19 | tags UI/bookmarks/row editing, the URL scheme, preferences + theming; **M2 fires here** |
