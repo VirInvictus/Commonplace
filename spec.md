@@ -173,10 +173,44 @@ number from `roadmap.md`.
 
 ## 6. Machine surfaces
 
-- `commonplace-cli` verbs document their exit codes (house exit-taxonomy
-  style: 0 success/empty, 1 findings-or-trouble, 2 usage error). Pinned
-  when the CLI phase lands.
-- `--json` output shapes are additive from their first release.
+The CLI is the scriptable half. The verb surface (additive from 1.0,
+spec §7): `search`, `list`, `open`, `new`, `append`, `export`, `tags`,
+`cat`, `render`, `config`, plus two [CP] additions pinned at the CLI
+phase: `completions` (shell completion scripts) and `scheme` (the
+find/make/markdownify route entry points sharing Phase 18's routes).
+Arg parsing is hand-rolled stdlib; a parser crate would be a deliberate
+decision, not an accident.
+
+- **Exit codes** (house exit-taxonomy style, pinned at Phase 8):
+  **0** success, including an empty result when empty is a valid
+  answer (report verbs: `search`, `list`, `tags`, `export`);
+  **1** trouble: runtime failures (store or I/O errors) and failed
+  resolutions where a target was required (`open`, `cat`, `render`,
+  `append` against a query that matches nothing); **2** usage error
+  (unknown verb or flag, a missing or malformed argument, an empty
+  required title, an unknown config key, an unknown shell for
+  `completions`). The house "findings" leg of 1 applies to
+  verdict-shaped verbs, of which the pinned surface has none: data
+  rows are not findings, so `list` on a full folder exits 0.
+- **`--json`**: every verb takes `--json`, printing exactly one JSON
+  envelope on stdout (`verb`, `ok: true`, and the verb's payload);
+  shapes are additive from their first release and pinned by snapshot
+  tests. Trouble and usage paths stay one clean line on stderr; JSON
+  rides success only. The envelope writer is hand-rolled (no serde;
+  crosswalk §11).
+- **Config**: `~/.config/commonplace/config.toml` (XDG; the
+  `COMMONPLACE_CONFIG` env var overrides the path), parsed and written
+  by a hand-rolled TOML subset in core (quoted-string key/values, one
+  section header, `#` comments; no serde, no arrays, no nested
+  tables; crosswalk §11's ~300-line subset standing in for upstream's
+  NSKeyedArchiver/NSUserDefaults plumbing). Keys: `notes_dir`
+  (default `~/Documents/Notes` [CP; upstream's default was an
+  app-support dir], `~` expands against `$HOME`), and the
+  `saved_searches` section carrying keys `"0"`-`"9"` (the nvUltra
+  hotkey slots, Phase 9, shared with the app). A missing config is
+  not an error: defaults apply. Unknown keys are a `config` verb
+  error, never silently dropped on write: the writer emits exactly
+  what was read.
 
 ## 7. Versioning
 

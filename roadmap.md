@@ -395,11 +395,14 @@ Deliverables: verbs over the Phase 1-7 engine, `--json` golden
 shapes, README usage section. Tests: exit-code table, json schema
 snapshots.
 
-- [ ] verb surface over the Phase 1-7 engine
-- [ ] `--json` envelopes + exit-code table tests
-- [ ] config file + default notes dir (hand-written TOML subset, no serde)
-- [ ] README usage section (user-facing docs, not deferred)
-- [ ] docs carried: spec §6 exits, patchnotes entry
+- [x] verb surface over the Phase 1-7 engine (twelve verbs: the ten
+      pinned plus the [CP] `completions` and `scheme` additions)
+- [x] `--json` envelopes + exit-code table tests (schema snapshots in
+      `tests/cli_golden.rs`, driven through the real parser)
+- [x] config file + default notes dir (hand-written TOML subset, no serde)
+- [x] README usage section (user-facing docs, not deferred)
+- [x] docs carried: spec §6 exits (pinned at this phase), patchnotes
+      entry lands with the v0.5.0 release
 
 ## Phase 9: CLI: saved searches, scheme half, completions
 
@@ -410,11 +413,20 @@ and reused by the app's Phase 17 [CP shared store]. Shell completions
 (`find`/`make`/`markdownify` argument handling), sharing Phase 18's
 routes.
 
-- [ ] saved-search store + `--saved N`
-- [ ] shell completions
-- [ ] scheme-verb CLI entry points sharing Phase 18 routes
-- [ ] docs carried: patchnotes entry, README machine surface
-- [ ] M1 fired (documentation catch-up milestone below)
+- [x] saved-search store + `--saved N` (the config's
+      `saved_searches` slots; unset slots are usage errors, ledger)
+- [x] shell completions (`completions bash|zsh|fish`, hand-written
+      static scripts over the pinned surface)
+- [x] scheme-verb CLI entry points sharing Phase 18 routes (`scheme
+      find/make/markdownify`; find and make are functional, the
+      markdownify/html/tags arms defer to Phase 21's converter with
+      clean trouble lines)
+- [x] docs carried: patchnotes entry (lands with v0.5.0), README
+      machine surface (the CLI usage section)
+- [x] M1 fired (2026-11-20: the five surfaces re-read against the
+      shipped verbs; the exit-code table, config keys, and saved-slot
+      semantics verified against the tests; README usage section
+      smoke-run through the real binary)
 
 ## Phase 10: App: shell, list, watching
 
@@ -988,3 +1000,7 @@ cut, verbatim tag messages).
 | Global activation hotkey: XDG GlobalShortcuts portal vs drop | 19 | open risk (crosswalk §2: Carbon PTHotKeys, no house precedent) |
 | Faux bold/italic (NSStrokeWidth/NSObliqueness): synthesized Pango tag vs drop to CSS class | 13 | open (crosswalk §8) |
 | Editor cursor: per-widget gdk::Cursor swap (upstream monkey-patches the process-wide I-beam) | 19 | decided (crosswalk §12) |
+| CLI exit taxonomy reading: 0 success incl. empty reports; 1 trouble (runtime failures + failed resolutions where a target was required); 2 usage. Data rows are not findings (the house "findings" leg is for verdict verbs; the pinned surface has none, so `list` on a full folder exits 0) | 8 | decided (2026-11-20, spec §6) |
+| `--sort` sets ascending intent (the upstream reversed default applies only to the unnamed column); `--reverse` flips either | 8 | decided (2026-11-20) |
+| Unset saved-search slot: usage error, not the empty query (empty would print every note; nvUltra's empty hotkey slot does nothing) | 9 | decided (2026-11-20) |
+| Flags come after the verb (`commonplace-cli list --dir X`); pre-verb flags stay reserved so the parser never guesses verb-vs-flag | 8 | decided (2026-11-20, README documents it) |

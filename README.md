@@ -58,8 +58,52 @@ cargo build --workspace
 cargo test --workspace
 ```
 
-The engine crate is dependency-free and tests headless; the app crate
-needs GTK 4 development libraries.
+The engine crate is dependency-free and tests headless; the CLI crate
+carries exactly one dependency (comrak, the Markdown renderer); the
+app crate needs GTK 4 development libraries.
+
+## CLI
+
+`commonplace-cli` is the scriptable half. The verb comes first, flags
+after the verb name. Exit codes: 0 success (empty results included),
+1 trouble (runtime failures, failed resolutions), 2 usage.
+
+```sh
+# One field, one query; the empty query lists everything.
+commonplace-cli search "alpha beta"
+commonplace-cli search --saved 1                  # a config hotkey slot
+commonplace-cli list --sort title
+commonplace-cli open "alpha"                      # absolute path of the match
+commonplace-cli new "Fresh Note" --body "first line"
+commonplace-cli append "fresh" --text "more"
+commonplace-cli cat "alpha"
+commonplace-cli render "alpha"                    # Markdown -> HTML
+commonplace-cli tags
+commonplace-cli export --format html --out ~/exports
+commonplace-cli config --set notes_dir ~/Documents/Notes
+commonplace-cli config --get notes_dir
+commonplace-cli completions zsh                   # bash | zsh | fish
+
+# A per-call notes-folder override rides the verb it belongs to:
+commonplace-cli search --dir ~/other-notes "alpha"
+```
+
+Every verb takes `--json` and prints exactly one envelope
+(`{"verb":...,"ok":true,...}`); shapes are additive from v0.5.0.
+
+Config lives at `~/.config/commonplace/config.toml` (override the path
+with `COMMONPLACE_CONFIG`; override the folder per call with `--dir`):
+
+```toml
+notes_dir = "~/Documents/Notes"
+
+[saved_searches]
+"1" = "project alpha"
+"2" = "#reading"
+```
+
+The default notes folder is `~/Documents/Notes`. Saved searches use
+the nvUltra hotkey slots (`0`-`9`) and are shared with the app.
 
 ## License
 
