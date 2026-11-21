@@ -20,11 +20,15 @@ pub const SAVED_SLOTS: [&str; 10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8"
 /// The parsed config. `extra_keys` holds top-level keys this version
 /// does not recognize; the writer re-emits them in read order so a
 /// `--set` never drops foreign keys.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Config {
     pub notes_dir: Option<String>,
     /// `(slot, query)` pairs in read order; slots are `"0"`-`"9"`.
     pub saved_searches: Vec<(String, String)>,
+    /// Launch restore (spec row 73, AC:2174-2190): the last search and
+    /// the note it led to, written by the app.
+    pub last_query: Option<String>,
+    pub last_note: Option<String>,
     pub extra_keys: Vec<(String, String)>,
 }
 
@@ -94,6 +98,15 @@ pub fn parse_config(text: &str) -> Result<Config, ConfigError> {
                 if key == "notes_dir" {
                     if config.notes_dir.replace(value).is_some() {
                         return Err(err(line_no, "duplicate key notes_dir"));
+                    }
+                } else if key == "last_query" || key == "last_note" {
+                    let slot = if key == "last_query" {
+                        &mut config.last_query
+                    } else {
+                        &mut config.last_note
+                    };
+                    if slot.replace(value).is_some() {
+                        return Err(err(line_no, &format!("duplicate key {key}")));
                     }
                 } else {
                     config.extra_keys.push((key, value));
@@ -173,6 +186,12 @@ pub fn write_config(config: &Config) -> String {
     };
     if let Some(dir) = &config.notes_dir {
         out.push_str(&format!("notes_dir = {}\n", quote(dir)));
+    }
+    if let Some(query) = &config.last_query {
+        out.push_str(&format!("last_query = {}\n", quote(query)));
+    }
+    if let Some(note) = &config.last_note {
+        out.push_str(&format!("last_note = {}\n", quote(note)));
     }
     for (key, value) in &config.extra_keys {
         out.push_str(&format!("{key} = {}\n", quote(value)));

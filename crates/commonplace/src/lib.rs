@@ -4,6 +4,7 @@
 //! `commonplace-core`; this crate owns the whole GTK stack plus the
 //! watching dependencies (spec rows 71-72).
 
+pub mod field;
 pub mod lists;
 pub mod style;
 pub mod watch;

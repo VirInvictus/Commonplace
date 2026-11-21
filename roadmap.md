@@ -458,12 +458,13 @@ against external edits, sorts, keyboard-navigates the list.
 Tests: headless where possible; the watch behavior gets an
 integration test with a temp dir.
 
-- [ ] window + two-pane vertical layout + sort picker + empty state
-- [ ] list widget: GtkListView + GObject domain items (house §Q3)
-- [ ] vir-gtk styling + Kanagawa from day one
-- [ ] file watching (notify crate decision confirmed; reconcile stays the truth)
-- [ ] watch integration test (temp dir + external edits)
-- [ ] docs carried: spec rows, patchnotes entry
+- [x] window + two-pane vertical layout + sort picker + empty state
+- [x] list widget: GtkListView + GObject domain items (house §Q3)
+- [x] vir-gtk styling + Kanagawa from day one
+- [x] file watching (notify crate decision confirmed; reconcile stays the truth)
+- [x] watch integration test (temp dir + external edits)
+- [x] docs carried: spec rows 71-72 (the patchnotes entry lands with
+      the v0.6.0 release, per the release-batching section)
 
 ## Phase 11: App: the search-field state machine
 
@@ -498,14 +499,21 @@ tick-callback coalescing for same-frame feedback, Docket's
 completion-re-entry and deletion-diff field behaviors,
 timeline.rs INVALID_LIST_POSITION deselect).
 
-- [ ] headless state-machine model (Quire evaluator pattern)
-- [ ] the full AppController behavior table as unit tests
-- [ ] thin GTK shell wiring over the model
-- [ ] launch restore (last search + last note + scroll)
-- [ ] typing-in-a-focused-list forwards to the field (NTV:976-984;
+- [x] headless state-machine model (Quire evaluator pattern)
+- [x] the full AppController behavior table as unit tests (18 tests;
+      the snapback slot and the followed-links stack pinned to
+      DualField.m's actual split: slot = typed search, links = routes)
+- [x] thin GTK shell wiring over the model
+- [x] launch restore (last search + last note via the config's
+      `last_query`/`last_note` keys; scroll restore is Phase 12's
+      per-note memory)
+- [x] typing-in-a-focused-list forwards to the field (NTV:976-984;
       crosswalk §2: keyDown forwarding, synthesized via the capture
       controller, since GTK has no event-forwarding primitive)
-- [ ] docs carried: spec rows, patchnotes entry
+- [x] docs carried: spec row 73 (the patchnotes entry lands with the
+      v0.6.0 release); the create-on-empty-body behavior ships as the
+      model's `on_body_typed_empty` with its shell wiring held for
+      Phase 12, where the editor becomes editable under autosave
 
 ## Phase 12: App: editor pane
 
