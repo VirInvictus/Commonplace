@@ -369,10 +369,11 @@ Deliverables: `export` verbs in core (dir of notes → dir of exports;
 single note → HTML/text). Tests: round-trip idempotence
 (export → re-import == byte-stable for text), HTML well-formedness.
 
-- [ ] export verbs (dir → dir; single note → HTML/text)
-- [ ] round-trip idempotence + well-formedness tests
-- [ ] the cut list recorded in spec §4
-- [ ] docs carried: spec §4, patchnotes entry
+- [x] export verbs (dir → dir; single note → HTML/text)
+- [x] round-trip idempotence + well-formedness tests
+- [x] the cut list recorded in spec §4
+- [x] docs carried: spec §4 + rows 69-70 (the patchnotes entry lands
+      with the v0.4.0 release, per the release-batching section)
 
 ## Phase 8: CLI: verb surface + machine shapes
 

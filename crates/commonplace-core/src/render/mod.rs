@@ -60,7 +60,9 @@ fn push_paragraph(out: &mut String, text: &str) {
     out.push_str("</p>");
 }
 
-fn escape_html(text: &str) -> String {
+/// The dependency-free HTML escaping helper (`&`, `<`, `>`), shared
+/// with the export wrapper's `<title>` slot.
+pub(crate) fn escape_html(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {
         match c {
