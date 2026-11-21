@@ -5,5 +5,6 @@
 //! watching dependencies (spec rows 71-72).
 
 pub mod lists;
+pub mod style;
 pub mod watch;
 pub mod window;

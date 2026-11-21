@@ -77,6 +77,9 @@ pub fn build(app: &Application, folder: PathBuf) -> gtk4::ApplicationWindow {
     picker.set_selected(0); // upstream's default: date modified
     let reverse = ToggleButton::with_label("Reverse");
     reverse.set_active(true); // upstream's default: date modified, reversed
+    // Binary state, not a suggested action: the quiet active look
+    // (app-tier sheet; see style.rs for the upstream default ask).
+    reverse.add_css_class("cp-quiet-toggle");
     controls.append(&picker);
     controls.append(&reverse);
     root.append(&controls);
