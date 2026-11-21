@@ -340,11 +340,21 @@ sanctioned dependency. Tests: trait contract, transclusion expansion,
 math/mermaid/wikilink detection flags (map §5
 `NVPreviewHTMLPreparingContent`).
 
-- [ ] renderer DECISION answered in the ledger
-- [ ] `render::Renderer` trait + test stub in core
-- [ ] renderer wiring in the frontend crates (sanctioned dependency)
-- [ ] transclusion expansion + detection-flag tests
-- [ ] docs carried: spec rows, patchnotes entry
+- [x] renderer DECISION answered in the ledger
+- [x] `render::Renderer` trait + test stub in core
+- [x] renderer wiring in the frontend crates (sanctioned dependency;
+      CLI crate now, app crate joins at Phase 15 per the ledger)
+- [x] transclusion expansion + detection-flag tests
+- [x] docs carried: spec rows 66-68 (the patchnotes entry lands with
+      the v0.4.0 release, per the release-batching section)
+
+Phase-open re-diff (2026-11-20): upstream moved `6a4c000..69754e5`
+(five commits, nvALT 3.0.41/42: list-formatting restore, note-flash
+fixes, bold-italic fix, MarkdownHighlight/NVAutoPair/SearchHighlight
+changes, and a save/scan no-op guard in NoteObject.m that preserves
+undo on self-inflicted rescans). None of it touches render or export;
+the window parks for the Phases 12-14 phase opens. Phase tip assumed:
+69754e5.
 
 ## Phase 7: Engine: export + import core
 
@@ -954,7 +964,7 @@ cut, verbatim tag messages).
 | Trash: `trash` crate in the app crate, engine keeps a delete boundary | 4 | decided (2026-11-17, confirmed per crates §3: crate 5.4 verified freedesktop-compliant; lands with the app crate at Phase 10+, the engine's delete takes the injected sink now) |
 | Link rewriting on rename: YES (upstream's hook is an empty stub) | 4 | decided (contract §3B) [CP improvement] |
 | `Title:` metadata overrides displayed title, first line is filename source | 5 | decided (2026-11-17, confirmed in spec row 53; the fallback is the row-3 rule, which for a metadata-titled note yields nvALT's literal `Title: Foo`, pinned as the compatibility fixture per formats §1.7) |
-| Renderer: comrak behind core trait (1.0.0 on 2026-11-17) | 6 | recommendation (crates §1), confirm at phase |
+| Renderer: comrak behind core trait (1.0.0 on 2026-11-17) | 6 | decided (2026-11-20, crates §1: pinned `=1.0.0`, MSRV 1.89 inside stable CI; alternatives recorded: pulldown-cmark 0.13.6, libMultiMarkdown FFI). Wikilinks un-parsed by the renderer so needs-wiki detection fires (Apex parity); math dollars on. Wiring lands in the CLI crate now (export consumes it); the app crate joins at Phase 15 where its own options (unsafe + sanitize) are decided |
 | List widget: GtkListView + SingleSelection (house §Q3; no ColumnView anywhere in house) | 10 | decided (roadmap, house evidence) |
 | File watching: notify 8.x + debouncer-full in app crate, reconcile keys on path + re-stat | 10 | recommendation (crates §2), confirm at phase |
 | Autosave: on, debounced 250-500 ms, Docket guard discipline | 12 | recommendation (house §Q2), confirm at phase |

@@ -8,6 +8,7 @@ pub mod links;
 pub mod metadata;
 pub mod note;
 pub mod query;
+pub mod render;
 pub mod search;
 pub mod store;
 pub mod tags;

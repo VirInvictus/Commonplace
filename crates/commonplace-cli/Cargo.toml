@@ -6,10 +6,18 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
+[lib]
+name = "commonplace_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "commonplace-cli"
 path = "src/main.rs"
 
 [dependencies]
 commonplace-core = { path = "../commonplace-core" }
+# The one sanctioned frontend dependency (spec row 66): comrak pinned
+# to its 1.0 release per crates §1's risk note; bumps are deliberate,
+# never incidental.
+comrak = "=1.0.0"
 # stdlib arg parsing for now; a parser choice is a CLI-phase decision.

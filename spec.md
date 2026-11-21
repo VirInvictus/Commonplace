@@ -68,6 +68,20 @@ ode to the bloggers and their commonplace books.
   encryption, but invariant 1 (notes are plain files) rules out an
   encrypted container as the default; any encryption design is a
   gated post-1.0 decision (roadmap Phase 22).
+- Export formats beyond HTML and plain text (Phase 7 cut list, map §1.5
+  `exportNoteAsFormat:` and map §7 note 2): RTF, DOC, and WordML
+  export (Cocoa attributed-string machinery with no Linux analog),
+  Textile (upstream shelled to a Ruby script), and `.blor` (NV's
+  proprietary single-db archive, never a files-first shape).
+- Stickies import (map §1.5): an macOS Stickies reader with no Linux
+  analog.
+- MultiMarkdown as a render engine (ultra §6): nvUltra embeds
+  libMultiMarkdown, but no alive Rust bindings crate exists (crates §1)
+  and upstream MMD is deprecated toward MMD 7 with no migration
+  statement; comrak is the engine behind the render boundary instead.
+- Finder tags and upstream file dates on exported files: the tag export
+  has no Linux analog (row 64 divergence), and std has no set-mtime API
+  for the date hand-off, so an exported file carries its export time.
 
 ## 5. Parity program
 
@@ -151,6 +165,9 @@ number from `roadmap.md`.
 | 63 | External-change reconciliation keys on path + re-stat | ALT | 4 | the Phase 4 reconcile rescans with row-1 admission and diffs by path: new paths add, missing paths remove, `(mtime, size)`-changed paths re-read (upstream's `synchronizeNotesFromDirectory` change triple at `NotationDirectoryManager.m:358-360`; rename detection by CNID/content is upstream identity bookkeeping a path-keyed store does not need: `statx` btime survives external renames anyway). Link rewriting happens only on engine-issued renames; upstream never rewrote links on any path (contract §3B: the hook is an empty stub) |
 | 64 | The tag store: MMD metadata blocks primary, inline `#tags` counted, derived indexes, no Finder tags | ULTRA, CP | 5 | nvUltra's metadata tagging (row 23) plus inline `#tags` as a [CP] superset; both indexes are derived and rebuildable from bodies alone. No Finder-tag parity: the recorded divergence (map §7 note 5, no desktop-standard tag store on Linux). The `tags:` value is nvUltra's comma-separated convention (formats §1.3); the inline-tag grammar is pinned by Commonplace (nvUltra's exact inline rule is undocumented): a `#` at a word boundary followed by letters/digits/hyphens/underscores |
 | 65 | Wiki-link extraction ports contract §3B's scanner; rename rewrites folded-matching links | ALT, CP | 5 | extraction: bracket-pair scan whose interior may not start or end with the guard set (`[`, `]`, whitespace, control/illegal chars, `AttributedPlainText.m:240-246`), a newline kills the block (the scan resumes after the newline, m:272-276), and the ObjC unbalanced-inner-bracket heuristic excludes code-like blocks (m:291-304); upstream stored links as `nvalt://find/` searches, and its rename hook `updateLinksToNote:` is an empty stub (NC:833-835): Commonplace's rename rewriting of folded-matching `[[links]]` is the recorded [CP] improvement (row 25). The newline trap uses the Unicode newline set upstream's trap covered (`\n`, `\r`, U+0085, U+2028/2029), not just `\n`. `{{transclusion}}` is recognized with cycles rejected (an unresolvable target ends its branch, never the walk); expansion is Phase 6/15 |
+| 66 | Render boundary: `render::Renderer` trait in core, comrak wired in the frontends | CP | 6 | DECISION (crates §1, confirmed 2026-11-20): core defines the `Renderer` trait plus a dependency-free test stub; comrak 1.0.0 is the sanctioned frontend dependency (pinned `=1.0.0`, MSRV 1.89 inside stable CI, crates §1 risk note). Alternatives recorded: pulldown-cmark 0.13.6 (no sourcepos-in-HTML, narrower extension surface) and libMultiMarkdown FFI (no alive bindings crate). Renderer output stays safe by default (raw HTML scrubbed); `unsafe` joins only where injection needs it and the sanitize story is decided in the same phase (Phase 15). Wikilinks are deliberately NOT parsed by the renderer: `[[X]]` survives as literal text so the needs-wiki detection fires (upstream Apex parity, where cmark-gfm also passed `[[...]]` through); math dollars are enabled so math spans land in the HTML |
+| 67 | Transclusion expansion runs pre-render | ULTRA, CP | 6 | row 26's [CP] shape landed: `render::expand_transclusions` expands `{{title}}` depth-first against a resolver (folded exact-title equality over display titles, not prefix matching), recursing into the expanded bodies; a repeat of an in-flight folded title rejects that cycle (the offending literal `{{...}}` stays in the output and the branch ends), an unresolvable target stays literal and never stops the walk, and depth is capped at 16 as a runaway guard |
+| 68 | Preview prep: detection flags, mermaid rewrite, task-done marking | ALT, CP | 6 | port of `NVPreviewHTMLPreparingContent` + `NVPreviewHTMLNeedsCodeHighlight` (map §5 `PreviewRender.m`): case-insensitive mermaid fence rewrite (both `language-mermaid` and `lang="mermaid"` shapes) into `<pre class="mermaid">`, needs-math (`class="math"` or `class="math "`), needs-mermaid (`class="mermaid"`), needs-wiki (literal `[[`), completed-task `<li>` marking (`nv-task-done` class + the task CSS prepended when any checkbox exists), and code-highlight detection (`<pre><code`, which excludes mermaid blocks because the rewrite runs first, and inline code because it has no `<pre>`); the NSRegularExpression patterns port as dependency-free hand-rolled scans |
 
 ## 6. Machine surfaces
 
