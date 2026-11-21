@@ -22,9 +22,6 @@ fn main() {
     vir_gtk::theme::install_default(true);
 
     let app = Application::builder().application_id(app_id()).build();
-    // The app-tier sheet: rules on top of the crate's base, re-spliced
-    // with the palette on every flip.
-    commonplace_app::style::install(&app);
     app.connect_activate(|app| {
         let folder = notes_folder();
         window::build(app, folder);

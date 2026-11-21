@@ -2,6 +2,26 @@
 
 Newest first.
 
+## v0.6.1 (2026-11-20)
+
+**vir-gtk 1.5.0 adoption: the app-tier quiet-toggle shim is gone; the
+upstream default now does what it was fighting for.**
+
+*   **Dropped the `.cp-quiet-toggle` shim.** The sort-direction
+    "Reverse" toggle carried an app-tier stylesheet (`style.rs`) whose
+    only content was quieting the checked/active paint that vir-gtk's
+    base sheet put on every checked button, because the dragon red
+    reads pink at button scale and a binary-state toggle is not a
+    suggested action. That ask was filed upstream as vir-gtk issue #1,
+    and vir-gtk 1.5.0 amended the default: the base sheet's
+    `button:active`/`:checked` rule now lifts to the raised tone and
+    spends no accent. The shim module, its install call, and the CSS
+    class on the toggle are deleted. One deliberate one-step surface
+    shift: the toggle's checked background moves from the card tone
+    (what the shim painted) to the raised tone (what the base now
+    paints); text and border are identical.
+*   **vir-gtk lock moved 1.4.3 → 1.5.0** (`d37ef6e`).
+
 ## v0.6.0 (2026-11-20)
 
 - The app rises, Phases 10-11 of the roadmap: the first GTK4 window,
