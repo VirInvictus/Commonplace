@@ -10,9 +10,9 @@ NV by Zachary Schneirov, Brett Terpstra's nvALT fork, and the closed-source
 nvUltra successor. One search field drives find-and-create over a folder of
 plain-text notes. Rust, three-crate workspace, GPL-3.0.
 
-Status: the engine is complete through the write path and the
-tag/link layer (roadmap Phases 1-5, tested and benchmarked); the
-render/export arc and the GUI and CLI are ahead (Phases 6+). The
+Status: the engine is feature-complete (roadmap Phases 1-7, tested
+and benchmarked; v0.4.0 shipped the render boundary and export core);
+the CLI and GUI arcs are ahead (Phases 8+). The
 contract lives in `spec.md`; the phase plan in `roadmap.md`. Read
 both before any code change.
 

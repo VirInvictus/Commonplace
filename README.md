@@ -14,13 +14,13 @@ forward on the Mac. Commonplace carries it to Linux.
 
 ## Status
 
-Engine arc underway, interface ahead. The behavior contract lives
+Engine feature-complete, interface ahead. The behavior contract lives
 in `spec.md`; the phase-by-phase port plan (which upstream code
 lands when) lives in `roadmap.md`. Research notes that feed those
 phases live in `research/`. The engine crate loads, searches, sorts,
-filters, writes, tags, and links a notes folder headlessly (Phases
-1-5); the render/export arc, then the GUI and CLI, come next, so
-nothing user-facing ships yet.
+filters, writes, tags, links, renders, and exports a notes folder
+headlessly (Phases 1-7, v0.4.0); the CLI (v0.5.0) and the GTK4 app
+(v0.6.0+) come next, so nothing user-facing ships yet.
 
 ## What it will do
 

@@ -2,6 +2,52 @@
 
 Newest first.
 
+## v0.4.0 (2026-11-20)
+
+- The render boundary and export core, Phases 6-7 of the roadmap:
+  with this release the engine is feature-complete (it loads,
+  searches, sorts, filters, writes, tags, links, renders, and exports
+  a notes folder, all headless), and the CLI and GUI arcs are next.
+- The render boundary (Phase 6): Markdown-to-HTML is a
+  `render::Renderer` trait in `commonplace-core`, dependency-free,
+  with a plain-text stub renderer as the fixed test oracle. comrak
+  1.0.0 lands as the one sanctioned frontend dependency (pinned
+  `=1.0.0` in `commonplace-cli`, where the export pipeline consumes
+  it; the engine itself still carries zero crates). Wikilinks are
+  deliberately un-parsed by the renderer so `[[X]]` survives as
+  literal text (upstream Apex parity); math dollars are enabled, and
+  the adapter normalizes comrak's `data-math-style` markup to the
+  upstream `class="math"` shape so the detection needles stay
+  byte-exact.
+- Transclusion expansion (Phase 6, the recorded [CP] pipeline):
+  `{{title}}` expands depth-first before anything renders, matching
+  by folded exact display title; a cycle rejects that branch with the
+  offending literal left in place, an unresolvable target stays
+  literal without stopping the walk, and depth caps at 16.
+- The preview-prep pass (Phase 6): nvALT's
+  `NVPreviewHTMLPreparingContent` ported as hand-rolled, regex-free
+  scans over rendered HTML: mermaid fences rewrite into
+  `<pre class="mermaid">` blocks (both the `language-mermaid` and
+  `lang="mermaid"` shapes, case-insensitive), the math/mermaid/wiki
+  detection flags compute over the prepared result, completed task
+  items gain the `nv-task-done` class with the exact upstream task
+  CSS prepended, and code-highlight detection excludes both mermaid
+  blocks and inline code.
+- Export core (Phase 7): dir-to-dir and single-note export in two
+  formats. Plain text writes the body verbatim with a proven
+  byte-stable round trip (export, re-import, export again:
+  byte-identical). HTML runs expand-then-render into a minimal
+  standalone document with the display title escaped into `<title>`.
+  Export filenames derive under the row-4 rules against the export
+  directory, so `:` and `/` fold to `-` and collisions take the
+  case-insensitive `.N` suffix; a preexisting file is never
+  overwritten.
+- The cut list is recorded in spec §4 with rationale: RTF/DOC/DOCX
+  export (Cocoa attributed-string machinery, no Linux analog),
+  Textile, Stickies import, the `.blor` archive, MultiMarkdown as a
+  render engine, and Finder tags plus upstream catalog dates on
+  exported files.
+
 ## v0.3.0 (2026-11-17)
 
 - The write path and the tag/link layer, Phases 4-5 of the roadmap:
