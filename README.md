@@ -14,26 +14,29 @@ forward on the Mac. Commonplace carries it to Linux.
 
 ## Status
 
-Engine feature-complete, interface ahead. The behavior contract lives
+Engine and CLI complete, GUI ahead. The behavior contract lives
 in `spec.md`; the phase-by-phase port plan (which upstream code
 lands when) lives in `roadmap.md`. Research notes that feed those
-phases live in `research/`. The engine crate loads, searches, sorts,
+phases live in `research/`. The engine loads, searches, sorts,
 filters, writes, tags, links, renders, and exports a notes folder
-headlessly (Phases 1-7, v0.4.0); the CLI (v0.5.0) and the GTK4 app
-(v0.6.0+) come next, so nothing user-facing ships yet.
+headlessly (Phases 1-7), and `commonplace-cli` drives all of it from
+the shell (Phases 8-9, v0.5.0; see the CLI section below); the GTK4
+app comes next (v0.6.0+).
 
-## What it will do
+## What it does
 
 - One search field that finds notes as you type and creates them when
-  nothing matches: the NV model, exactly.
+  nothing matches: the NV model, exactly (engine and CLI today; the
+  field itself ships with the app phases).
 - Notes are plain files (`.txt`, `.md`) in a folder you own. The index
   is derived and rebuildable; delete it and nothing is lost.
 - A CLI (`commonplace-cli`) with a machine surface, because the engine
   is GUI-free and testable headless.
 - A GTK4 app (plain GTK4, no libadwaita) in the house Kanagawa Dragon
-  style, keyboard-first like the original.
+  style, keyboard-first like the original, coming next.
 - Preview and export for Markdown/MultiMarkdown, in the nvALT/nvUltra
-  tradition.
+  tradition (export is in the engine and the CLI today; the preview
+  pane ships with the app phases).
 
 Feature-level parity targets (NV core, nvALT, nvUltra) are pinned in
 `spec.md` with the research citations behind them.

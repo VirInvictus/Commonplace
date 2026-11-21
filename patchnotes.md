@@ -2,6 +2,44 @@
 
 Newest first.
 
+## v0.5.0 (2026-11-20)
+
+- The CLI arc, Phases 8-9 of the roadmap: the first runnable
+  artifact. `commonplace-cli` now drives the whole engine from the
+  shell, and the M1 documentation catch-up milestone fired at the end
+  of the arc (the five surfaces re-read against the shipped verbs,
+  every README example smoke-run through the real binary).
+- Twelve verbs: `search`, `list`, `open`, `new`, `append`, `export`,
+  `tags`, `cat`, `render`, `config`, plus the two [CP] additions
+  pinned at this phase, `completions` (bash/zsh/fish scripts over the
+  pinned surface) and `scheme` (the find/make/markdownify route entry
+  points sharing Phase 18's routes; find and make are functional, the
+  markdownify/html/tags arms report that the converter lands with the
+  import phase). Arg parsing is hand-rolled stdlib (the standing
+  decision); the JSON envelope writer is hand-rolled too, so the
+  workspace's only external dependency is still comrak.
+- Exit taxonomy (spec §6, pinned): 0 success including empty reports;
+  1 trouble (runtime failures and failed resolutions where a target
+  was required); 2 usage. `--json` prints exactly one envelope per
+  verb, shapes pinned by snapshot tests and additive from here.
+- Config (spec §6): `~/.config/commonplace/config.toml` parsed and
+  written by a hand-rolled TOML subset in the engine (quoted-string
+  key/values, one section, three escapes, no serde; foreign keys
+  survive every write). `notes_dir` defaults to `~/Documents/Notes`
+  [CP]; `saved_searches` carries the nvUltra hotkey slots `0`-`9`,
+  shared with the app, invocable as `search --saved N`. Unset slots
+  are usage errors; the `config` verb never opens the notes folder,
+  so `--set notes_dir` works on a machine that has none yet.
+- Resolution semantics: `open`/`cat`/`render`/`append`/`scheme find`
+  resolve a query to one note through the Phase 3 selection rule
+  (first title-prefix match, prefix parent wins); `--sort` names an
+  ascending column and `--reverse` flips it, while the unnamed
+  default stays upstream's date-modified-reversed. M1's smoke pass
+  caught two real bugs before they shipped: the selection position
+  was being read as an arena index (every resolution verb silently
+  targeted the first note in path order), and the `config` verb
+  opened the notes folder it was supposed to configure.
+
 ## v0.4.0 (2026-11-20)
 
 - The render boundary and export core, Phases 6-7 of the roadmap:
