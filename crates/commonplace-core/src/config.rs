@@ -192,6 +192,28 @@ pub fn write_config(config: &Config) -> String {
 }
 
 impl Config {
+    /// The config file's location: `$COMMONPLACE_CONFIG` overrides,
+    /// else the XDG default `~/.config/commonplace/config.toml`
+    /// (`$XDG_CONFIG_HOME` respected). The CLI and the app share it.
+    pub fn xdg_path() -> PathBuf {
+        if let Ok(override_path) = std::env::var("COMMONPLACE_CONFIG")
+            && !override_path.is_empty()
+        {
+            return PathBuf::from(override_path);
+        }
+        if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME")
+            && !xdg.is_empty()
+        {
+            return Path::new(&xdg).join("commonplace/config.toml");
+        }
+        match std::env::var("HOME") {
+            Ok(home) if !home.is_empty() => {
+                Path::new(&home).join(".config/commonplace/config.toml")
+            }
+            _ => PathBuf::from(".config/commonplace/config.toml"),
+        }
+    }
+
     /// Load the config file; a missing file is not an error (spec §6:
     /// defaults apply). Parse and I/O failures are.
     pub fn load(path: &Path) -> Result<Config, ConfigError> {

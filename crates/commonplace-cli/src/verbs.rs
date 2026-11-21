@@ -66,18 +66,7 @@ impl Env {
     /// Read the real environment: `COMMONPLACE_CONFIG` overrides the
     /// XDG config path; `HOME` backs `~` expansion.
     pub fn from_process() -> Env {
-        let config_path = match std::env::var("COMMONPLACE_CONFIG") {
-            Ok(path) if !path.is_empty() => PathBuf::from(path),
-            _ => match std::env::var("XDG_CONFIG_HOME") {
-                Ok(xdg) if !xdg.is_empty() => Path::new(&xdg).join("commonplace/config.toml"),
-                _ => match std::env::var("HOME") {
-                    Ok(home) if !home.is_empty() => {
-                        Path::new(&home).join(".config/commonplace/config.toml")
-                    }
-                    _ => PathBuf::from(".config/commonplace/config.toml"),
-                },
-            },
-        };
+        let config_path = commonplace_core::config::Config::xdg_path();
         let home = std::env::var("HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("/"));

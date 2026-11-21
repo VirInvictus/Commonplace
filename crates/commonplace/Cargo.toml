@@ -6,12 +6,29 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
+[lib]
+name = "commonplace_app"
+path = "src/lib.rs"
+
 [[bin]]
 name = "commonplace"
 path = "src/main.rs"
 
 [dependencies]
 commonplace-core = { path = "../commonplace-core" }
-# GtkSourceView joins at the editor phase; the skeleton window needs
-# only the base GTK4 API.
+# GtkSourceView joins at the editor phase; the shell needs only the
+# base GTK4 API.
 gtk4 = { version = "0.11", features = ["v4_10"] }
+# The house styling layer, the libadwaita replacement (spec row 71).
+# Consumption model per vir-gtk's own README: track main, Cargo.lock
+# pins the revision; upgrades are explicit `cargo update -p vir-gtk`
+# events.
+vir-gtk = { git = "https://github.com/VirInvictus/vir-gtk.git", branch = "main" }
+# File watching (spec row 72): notify 8.x stable, not the 9.0 rc; the
+# debouncer merges Create+Rename atomic-save pairs into single events.
+notify = "8.2"
+notify-debouncer-full = "0.7"
+# The watcher-to-main-loop bridge (glib 0.22 removed
+# MainContext::channel; Viaduct's tray pattern: a cross-thread channel
+# awaited by glib::spawn_future_local).
+async-channel = "2"
